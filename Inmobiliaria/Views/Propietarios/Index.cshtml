@@ -1,0 +1,46 @@
+@model List<Inmobiliaria.Models.Propietario>
+
+@{
+    ViewData["Title"] = "Propietarios";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Propietarios</h2>
+    <a asp-action="Create" class="btn btn-primary">Nuevo propietario</a>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">No hay propietarios cargados.</div>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Id</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th style="width: 180px;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var propietario in Model)
+            {
+                <tr>
+                    <td>@propietario.Id</td>
+                    <td>@propietario.Nombre</td>
+                    <td>@propietario.Apellido</td>
+                    <td>@propietario.Telefono</td>
+                    <td>@propietario.Email</td>
+                    <td>
+                        <a asp-action="Edit" asp-route-id="@propietario.Id" class="btn btn-sm btn-warning">Editar</a>
+                        <a asp-action="Delete" asp-route-id="@propietario.Id" class="btn btn-sm btn-danger">Eliminar</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
