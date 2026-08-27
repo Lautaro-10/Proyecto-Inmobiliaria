@@ -1,25 +1,45 @@
 using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
-
+using MySqlConnector;
 namespace Inmobiliaria.Controllers;
 
 public class InquilinosController : Controller
 {
-    private static readonly List<Inquilino> _inquilinos = new()
-    {
-        new Inquilino(1, "Ana", "Martínez", "30123456", "1133445566", "ana.martinez@mail.com"),
-        new Inquilino(2, "Luis", "Ramírez", "28765432", "1155667788", "luis.ramirez@mail.com"),
-        new Inquilino(3, "Sofía", "Torres", "32456789", "1199887766", "sofia.torres@mail.com")
-    };
+    private readonly String _connectionString;
 
-    private static int _nextId = _inquilinos.Count + 1;
+    public InquilinosController(IConfiguration configuration)
+        {
+            _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
+        }
 
-    public IActionResult Index()
+
+
+public IActionResult Index()
     {
-        var inquilinos = _inquilinos
-            .OrderBy(i => i.Apellido)
-            .ThenBy(i => i.Nombre)
-            .ToList();
+        var inquilinos = new List<Inquilino>();
+
+        using (var connection = new MySqlConnection(_connectionString))
+        {
+            connection.Open();
+            string sql = "SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Inquilinos ORDER BY Apellido, Nombre";
+
+            using (var command = new MySqlCommand(sql, connection))
+            using (var reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    inquilinos.Add(new Inquilino
+                    {
+                        Id = Convert.ToInt32(reader["Id"]),
+                        Nombre = reader["Nombre"].ToString() ?? "",
+                        Apellido = reader["Apellido"].ToString() ?? "",
+                        Dni = reader["Dni"].ToString() ?? "",
+                        Telefono = reader["Telefono"].ToString() ?? "",
+                        Email = reader["Email"].ToString() ?? ""
+                    });
+                }
+            }
+        }
 
         return View(inquilinos);
     }
@@ -31,6 +51,7 @@ public class InquilinosController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    
     public IActionResult Create(Inquilino inquilino)
     {
         if (!ModelState.IsValid)
@@ -38,25 +59,71 @@ public class InquilinosController : Controller
             return View(inquilino);
         }
 
-        if (_inquilinos.Any(i => i.Email.Equals(inquilino.Email, StringComparison.OrdinalIgnoreCase)))
+        using (var connection = new MySqlConnection(_connectionString))
         {
-            ModelState.AddModelError(nameof(Inquilino.Email), "Ya existe un inquilino con ese email.");
-            return View(inquilino);
-        }
+            connection.Open();
 
-        inquilino.Id = _nextId++;
-        _inquilinos.Add(inquilino);
+            string checkSql = "SELECT COUNT(1) FROM Inquilinos WHERE Email = @email OR Dni = @dni";
+            using (var checkCommand = new MySqlCommand(checkSql, connection))
+            {
+                checkCommand.Parameters.AddWithValue("@email", inquilino.Email);
+                checkCommand.Parameters.AddWithValue("@dni", inquilino.Dni);
+
+                long count = Convert.ToInt64(checkCommand.ExecuteScalar());
+                if (count > 0)
+                {
+                    ModelState.AddModelError("", "Ya existe un inquilino con ese DNI o Email.");
+                    return View(inquilino);
+                }
+            }
+
+            string sql = @"INSERT INTO Inquilinos (Nombre, Apellido, Dni, Telefono, Email) 
+                           VALUES (@nombre, @apellido, @dni, @telefono, @email)";
+
+            using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@nombre", inquilino.Nombre);
+                command.Parameters.AddWithValue("@apellido", inquilino.Apellido);
+                command.Parameters.AddWithValue("@dni", inquilino.Dni);
+                command.Parameters.AddWithValue("@telefono", inquilino.Telefono);
+                command.Parameters.AddWithValue("@email", inquilino.Email);
+
+                command.ExecuteNonQuery();
+            }
+        }
 
         return RedirectToAction(nameof(Index));
     }
 
     public IActionResult Edit(int id)
     {
-        var inquilino = _inquilinos.FirstOrDefault(i => i.Id == id);
+        Inquilino? inquilino = null;
 
-        if (inquilino == null)
+        using (var connection = new MySqlConnection(_connectionString))
         {
-            return NotFound();
+            connection.Open();
+            string sql = "SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Inquilinos WHERE Id = @id";
+
+            using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@id", id);
+
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        inquilino = new Inquilino
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            Nombre = reader["Nombre"].ToString() ?? "",
+                            Apellido = reader["Apellido"].ToString() ?? "",
+                            Dni = reader["Dni"].ToString() ?? "",
+                            Telefono = reader["Telefono"].ToString() ?? "",
+                            Email = reader["Email"].ToString() ?? ""
+                        };
+                    }
+                }
+            }
         }
 
         return View(inquilino);
@@ -76,32 +143,78 @@ public class InquilinosController : Controller
             return View(inquilino);
         }
 
-        var inquilinoExistente = _inquilinos.FirstOrDefault(i => i.Id == id);
 
-        if (inquilinoExistente == null)
+        using (var connection = new MySqlConnection(_connectionString))
         {
-            return NotFound();
+            connection.Open();
+            string checksql = "SELECT count(1) FROM Inquilinos WHERE (Email = @email OR Dni = @dni) AND Id != @id";
+
+            using (var checkCommand = new MySqlCommand(checksql, connection))
+            {
+                checkCommand.Parameters.AddWithValue("@email", inquilino.Email);
+                checkCommand.Parameters.AddWithValue("@dni", inquilino.Dni);
+                checkCommand.Parameters.AddWithValue("@id", id);
+
+                long count = Convert.ToInt32(checkCommand.ExecuteScalar());
+                if (count > 0)
+                {
+                    ModelState.AddModelError(nameof(Inquilino.Email), "Ya existe otro inquilino con ese email.");
+                    return View(inquilino);
+                }
+            }
+            string sql = @"UPDATE Inquilinos 
+                           SET Nombre = @nombre, Apellido = @apellido, Dni = @dni, Telefono = @telefono, Email = @email 
+                           WHERE Id = @id";
+
+            using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@nombre", inquilino.Nombre);
+                command.Parameters.AddWithValue("@apellido", inquilino.Apellido);
+                command.Parameters.AddWithValue("@dni", inquilino.Dni);
+                command.Parameters.AddWithValue("@telefono", inquilino.Telefono);
+                command.Parameters.AddWithValue("@email", inquilino.Email);
+                command.Parameters.AddWithValue("@id", id);
+
+                int rowsAffected = command.ExecuteNonQuery();
+                if (rowsAffected == 0)
+                {
+                    return NotFound();
+                }
+            }
         }
-
-        if (_inquilinos.Any(i => i.Id != id && i.Email.Equals(inquilino.Email, StringComparison.OrdinalIgnoreCase)))
-        {
-            ModelState.AddModelError(nameof(Inquilino.Email), "Ya existe otro inquilino con ese email.");
-            return View(inquilino);
+                return RedirectToAction(nameof(Index));
         }
-
-        inquilinoExistente.Nombre = inquilino.Nombre;
-        inquilinoExistente.Apellido = inquilino.Apellido;
-        inquilinoExistente.Dni = inquilino.Dni;
-        inquilinoExistente.Telefono = inquilino.Telefono;
-        inquilinoExistente.Email = inquilino.Email;
-
-        return RedirectToAction(nameof(Index));
-    }
+        
 
     public IActionResult Delete(int id)
     {
-        var inquilino = _inquilinos.FirstOrDefault(i => i.Id == id);
+        Inquilino? inquilino = null;
 
+        using (var connection = new MySqlConnection(_connectionString))
+        {
+            connection.Open();
+            string sql = "SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Inquilinos WHERE Id = @id";
+
+            using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@id", id);
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        inquilino = new Inquilino
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            Nombre = reader["Nombre"].ToString() ?? "",
+                            Apellido = reader["Apellido"].ToString() ?? "",
+                            Dni = reader["Dni"].ToString() ?? "",
+                            Telefono = reader["Telefono"].ToString() ?? "",
+                            Email = reader["Email"].ToString() ?? ""
+                        };
+                    }
+                }
+            }
+        }
         if (inquilino == null)
         {
             return NotFound();
@@ -113,16 +226,33 @@ public class InquilinosController : Controller
     [HttpPost]
     [ActionName("Delete")]
     [ValidateAntiForgeryToken]
+    
     public IActionResult DeleteConfirmed(int id)
     {
-        var inquilino = _inquilinos.FirstOrDefault(i => i.Id == id);
-
-        if (inquilino == null)
+        using (var connection =new MySqlConnection(_connectionString))
         {
-            return NotFound();
+            connection.Open();
+            string sql = "DELETE FROM Inquilinos WHERE Id = @id";
+
+            using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@id", id);
+                command.ExecuteNonQuery();
+            }
+        }
+        using (var connection = new MySqlConnection(_connectionString))
+        {
+            connection.Open();
+            string sql = "DELETE FROM Inquilinos WHERE Id = @id";
+
+            using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@id", id);
+                command.ExecuteNonQuery();
+            }
         }
 
-        _inquilinos.Remove(inquilino);
         return RedirectToAction(nameof(Index));
     }
-}
+} 
+
