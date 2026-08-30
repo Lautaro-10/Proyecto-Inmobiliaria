@@ -229,17 +229,6 @@ public IActionResult Index()
     
     public IActionResult DeleteConfirmed(int id)
     {
-        using (var connection =new MySqlConnection(_connectionString))
-        {
-            connection.Open();
-            string sql = "DELETE FROM Inquilinos WHERE Id = @id";
-
-            using (var command = new MySqlCommand(sql, connection))
-            {
-                command.Parameters.AddWithValue("@id", id);
-                command.ExecuteNonQuery();
-            }
-        }
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
