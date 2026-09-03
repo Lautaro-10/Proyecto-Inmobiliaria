@@ -8,10 +8,8 @@ Tal como se solicita, el repositorio incluye el script de inicialización:
 1. Iniciar los módulos de **Apache** y **MySQL** desde el panel de control de XAMPP.
 2. Abrir el navegador e ingresar a phpMyAdmin (`http://localhost/phpmyadmin`).
 3. Seleccionar la pestaña **Importar** en el menú superior.
-4. Seleccionar el archivo `script.sql` ubicado en la raíz de este repositorio y presionar el botón "Importar" (o "Continuar") en la parte inferior.
+4. Seleccionar el archivo `script.sql` ubicado en la raíz de este repositorio y presionar el botón "Importar" en la parte inferior.
 5. Esto creará automáticamente la base de datos `InmobiliariaDB`, las tablas correspondientes y cargará los datos de prueba.
-
-*(Nota para la corrección: En esta primera iteración, la aplicación MVC utiliza listas en memoria para garantizar la estabilidad del ABM, mientras que la estructura definitiva de persistencia en MySQL se encuentra en el script adjunto).*
 
 ## Diagrama Entidad-Relación (DER)
 ```mermaid
@@ -44,9 +42,14 @@ erDiagram
         string nombre
         string descripcion
         string direccion
+        int cupo
+        string tipo_inmueble
+        decimal longitud
+        decimal latitud
         decimal precio_diario
         string imagen_portada
         string imagenes_adicionales
+        boolean activo
         datetime fecha_creacion
     }
     
