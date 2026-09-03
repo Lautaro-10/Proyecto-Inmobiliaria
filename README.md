@@ -19,50 +19,57 @@ config:
 ---
 erDiagram
     PROPIETARIO ||--o{ INMUEBLE : posee
+    TIPO_INMUEBLE ||--o{ INMUEBLE : clasifica
     INQUILINO ||--o{ RESERVA : realiza
     INMUEBLE ||--o{ RESERVA : contiene
     RESERVA ||--o{ PAGO : genera
     USUARIO ||--o{ PROPIETARIO : es
     USUARIO ||--o{ INQUILINO : es
     USUARIO ||--o{ EMPLEADO : actua_como
-    
+
     PROPIETARIO {
         int id PK
         string nombre
         string apellido
-        string dni
+        string dni UK
         string email
         string telefono
         datetime fecha_registro
     }
-    
+
+    TIPO_INMUEBLE {
+        int id PK
+        string descripcion
+    }
+
     INMUEBLE {
         int id PK
         int propietario_id FK
+        int tipo_inmueble_id FK
         string nombre
         string descripcion
         string direccion
         int cupo
-        string tipo_inmueble
-        decimal longitud
         decimal latitud
+        decimal longitud
         decimal precio_diario
+        decimal porcentaje_reserva
         string imagen_portada
         string imagenes_adicionales
-        boolean activo
-        datetime fecha_creacion
+        boolean disponible
+        date fecha_creacion
     }
-    
+
     INQUILINO {
         int id PK
         string nombre
         string apellido
-        string dni
+        string dni UK
         string email
         string telefono
         datetime fecha_registro
     }
-    
+
     RESERVA {
         int id PK
         int inquilino_id FK
@@ -70,15 +77,32 @@ erDiagram
         decimal monto_diario
         date fecha_inicio
         date fecha_fin
-        string estado
-        datetime fecha_creacion
     }
-    
+
     PAGO {
         int id PK
         int reserva_id FK
         decimal monto
-        string tipo_pago
+        string concepto
         string estado
         datetime fecha_pago
+    }
+
+    USUARIO {
+        int id PK
+        string email UK
+        string password_hash
+        string rol
+        boolean activo
+        datetime fecha_creacion
+        datetime ultimo_acceso
+    }
+
+    EMPLEADO {
+        int id PK
+        int usuario_id FK
+        string nombre
+        string puesto
+        boolean puede_eliminar
+        boolean puede_gestionar_usuarios
     }
