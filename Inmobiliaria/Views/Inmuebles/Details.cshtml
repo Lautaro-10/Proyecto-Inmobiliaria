@@ -1,0 +1,45 @@
+@model Inmobiliaria.Models.Inmueble
+
+@{
+    ViewData["Title"] = "Detalle del Inmueble";
+}
+
+<div class="card mt-3">
+    <div class="card-header bg-primary text-white">
+        <h3>@Model.Nombre</h3>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-3">Descripción</dt>
+            <dd class="col-sm-9">@Model.Descripcion</dd>
+
+            <dt class="col-sm-3">Dirección</dt>
+            <dd class="col-sm-9">@Model.Direccion</dd>
+
+            <dt class="col-sm-3">Tipo</dt>
+            <dd class="col-sm-9">@Model.Tipo?.Descripcion</dd>
+
+            <dt class="col-sm-3">Propietario</dt>
+            <dd class="col-sm-9">@Model.Duenio?.Apellido, @Model.Duenio?.Nombre</dd>
+
+            <dt class="col-sm-3">Cupo de personas</dt>
+            <dd class="col-sm-9">@Model.Cupo</dd>
+
+            <dt class="col-sm-3">Precio por Día</dt>
+            <dd class="col-sm-9">$@Model.PrecioPorDia</dd>
+
+            <dt class="col-sm-3">% Seña Reserva</dt>
+            <dd class="col-sm-9">@Model.PorcentajeReserva %</dd>
+
+            <dt class="col-sm-3">Coordenadas</dt>
+            <dd class="col-sm-9">Lat: @Model.Latitud | Lng: @Model.Longitud</dd>
+
+            <dt class="col-sm-3">Disponible</dt>
+            <dd class="col-sm-9">@(Model.Disponible ? "Sí" : "No")</dd>
+        </dl>
+    </div>
+    <div class="card-footer">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning">Editar</a>
+        <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+    </div>
+</div>

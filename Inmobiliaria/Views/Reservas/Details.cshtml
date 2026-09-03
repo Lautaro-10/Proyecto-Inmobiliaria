@@ -1,0 +1,49 @@
+@model Inmobiliaria.Models.Reserva
+
+@{
+    ViewData["Title"] = "Detalle de la Reserva";
+    var diasTotales = (Model.FechaFin - Model.FechaInicio).Days;
+    var costoEstimado = diasTotales * Model.MontoDiario;
+}
+
+<div class="card mt-3">
+    <div class="card-header bg-success text-white">
+        <h3>Reserva #@Model.Id</h3>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Datos del Inmueble</h5>
+                <p><strong>Propiedad:</strong> @Model.Inmueble?.Nombre</p>
+                <p><strong>Dirección:</strong> @Model.Inmueble?.Direccion</p>
+            </div>
+            <div class="col-md-6">
+                <h5>Datos del Inquilino</h5>
+                <p><strong>Nombre:</strong> @Model.Inquilino?.Apellido, @Model.Inquilino?.Nombre</p>
+                <p><strong>DNI:</strong> @Model.Inquilino?.Dni</p>
+                <p><strong>Teléfono:</strong> @Model.Inquilino?.Telefono</p>
+                <p><strong>Email:</strong> @Model.Inquilino?.Email</p>
+            </div>
+        </div>
+        <hr />
+        <dl class="row">
+            <dt class="col-sm-3">Fecha de Inicio</dt>
+            <dd class="col-sm-9">@Model.FechaInicio.ToString("dd/MM/yyyy")</dd>
+
+            <dt class="col-sm-3">Fecha de Fin</dt>
+            <dd class="col-sm-9">@Model.FechaFin.ToString("dd/MM/yyyy")</dd>
+
+            <dt class="col-sm-3">Monto Diario</dt>
+            <dd class="col-sm-9">$@Model.MontoDiario</dd>
+
+            <dt class="col-sm-3">Duración Estancia</dt>
+            <dd class="col-sm-9">@diasTotales días</dd>
+
+            <dt class="col-sm-3">Costo Total Estimado</dt>
+            <dd class="col-sm-9"><strong>$@costoEstimado</strong></dd>
+        </dl>
+    </div>
+    <div class="card-footer">
+        <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
+    </div>
+</div>

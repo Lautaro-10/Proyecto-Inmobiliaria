@@ -70,3 +70,12 @@ INSERT INTO Inquilinos (Nombre, Apellido, Dni, Email, Telefono)
 VALUES 
 ('Juan', 'Perez','11111111', 'jperez@mail.com', '2664445566'),
 ('Ana', 'Martinez','22222222', 'amartinez@mail.com', '2664778899');
+
+INSERT INTO TiposInmueble (Descripcion) VALUES 
+('Casa'), ('Departamento'), ('Monoambiente'), ('Loft');
+
+INSERT INTO Inmuebles (Nombre, Descripcion, Direccion, Cupo, Latitud, Longitud, PrecioPorDia, PorcentajeReserva, ImagenPortada, Disponible, PropietarioId, TipoInmuebleId) VALUES 
+('Depto Centro', 'Moderno en pleno centro', 'San Martín 650', 3, -33.30050000, -66.33780000, 35000.00, 15.00, 'depto1.jpg', 1, 1, 2);
+
+INSERT INTO Reservas (FechaInicio, FechaFin, MontoDiario, InmuebleId, InquilinoId) VALUES 
+('2026-10-01', '2026-10-07', 35000.00, 1, 1);

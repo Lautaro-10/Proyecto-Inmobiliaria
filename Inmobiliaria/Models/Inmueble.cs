@@ -16,10 +16,10 @@ public class Inmueble
 
     
     [Required(ErrorMessage = "Se necesita agregar un nombre al inmueble")]
-    public string Descripcion { get; set; } = string.Empty;
+    public string Nombre { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Se necesita agregar una descripcion del inmueble")]
-    public string descripcion { get; set; } = string.Empty;
+    public string Descripcion { get; set; } = string.Empty;
 ////////////////////////////////////////
     [Required(ErrorMessage = "La dirección es requerida.")]
     public string Direccion { get; set; } = string.Empty;
