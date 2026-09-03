@@ -14,9 +14,12 @@ public class Inmueble
     public int TipoInmuebleId { get; set; }
     public TipoInmueble? Tipo { get; set; }
 
+    
+    [Required(ErrorMessage = "Se necesita agregar un nombre al inmueble")]
+    public string Descripcion { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Se necesita agregar una descripcion del inmueble")]
-    public string Descripcion { get; set; } = string.Empty;
+    public string descripcion { get; set; } = string.Empty;
 ////////////////////////////////////////
     [Required(ErrorMessage = "La dirección es requerida.")]
     public string Direccion { get; set; } = string.Empty;
@@ -24,6 +27,13 @@ public class Inmueble
     [Required]
     [Range(1, 50, ErrorMessage = "El cupo debe ser mayor a 0.")]
     public int Cupo { get; set; }
+
+    
+    [Range(-90, 90, ErrorMessage = "La latitud debe estar entre -90 y 90.")]
+    public decimal? Latitud { get; set; }
+
+    [Range(-180, 180, ErrorMessage = "La longitud debe estar entre -180 y 180.")]
+    public decimal? Longitud { get; set; }
 
 
     [Required]
@@ -33,6 +43,9 @@ public class Inmueble
     [Required]
     public decimal PorcentajeReserva { get; set; } = 10.0m;
 
+   [Required]
+    public string? ImagenPortada { get; set; }
+    
     public bool Disponible { get; set; } = true;
 
 
