@@ -1,6 +1,6 @@
 using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
-
+using Microsoft.AspNetCore.Authorization;
 namespace Inmobiliaria.Controllers;
 
 public class PropietariosController : Controller
@@ -96,7 +96,8 @@ public class PropietariosController : Controller
 
         return RedirectToAction(nameof(Index));
     }
-
+    
+    [Authorize(Roles = "Administrador")]
     public IActionResult Delete(int id)
     {
         var propietario = _propietarios.FirstOrDefault(p => p.Id == id);
@@ -111,6 +112,7 @@ public class PropietariosController : Controller
 
     [HttpPost]
     [ActionName("Delete")]
+    [Authorize(Roles = "Administrador")]
     [ValidateAntiForgeryToken]
     public IActionResult DeleteConfirmed(int id)
     {

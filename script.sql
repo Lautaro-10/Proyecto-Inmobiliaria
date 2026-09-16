@@ -41,12 +41,22 @@ CREATE TABLE IF NOT EXISTS Inmuebles (
     ImagenPortada VARCHAR (255),
     ImagenesAdicionales VARCHAR(255),
     Disponible TINYINT(1) NOT NULL DEFAULT 1,
-    FechaCreacion  NOT NULL,
+    FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PropietarioId INT NOT NULL,
     TipoInmuebleId INT NOT NULL,
     FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (PropietarioId) REFERENCES Propietarios(Id),
     FOREIGN KEY (TipoInmuebleId) REFERENCES TiposInmueble(Id)
+);
+
+CREATE TABLE IF NOT EXISTS Usuarios (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    Email VARCHAR(150) NOT NULL UNIQUE,
+    PasswordHash VARCHAR(500) NOT NULL,
+    Rol VARCHAR(30) NOT NULL DEFAULT 'Empleado',
+    Activo TINYINT(1) NOT NULL DEFAULT 1,
+    FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UltimoAcceso DATETIME NULL
 );
 
 CREATE TABLE IF NOT EXISTS Reservas (
@@ -56,9 +66,37 @@ CREATE TABLE IF NOT EXISTS Reservas (
     MontoDiario DECIMAL(10,2) NOT NULL,
     InmuebleId INT NOT NULL,
     InquilinoId INT NOT NULL,
+    Estado VARCHAR(30) NOT NULL DEFAULT 'Pendiente',
+    FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FechaFinOriginal DATE NULL,
+    FechaTerminacion DATETIME NULL,
+    CreadoPorUsuarioId INT NULL,
+    TerminadoPorUsuarioId INT NULL,
     FOREIGN KEY (InmuebleId) REFERENCES Inmuebles(Id),
-    FOREIGN KEY (InquilinoId) REFERENCES Inquilinos(Id)
+    FOREIGN KEY (InquilinoId) REFERENCES Inquilinos(Id),
+    FOREIGN KEY (CreadoPorUsuarioId) REFERENCES Usuarios(Id),
+    FOREIGN KEY (TerminadoPorUsuarioId) REFERENCES Usuarios(Id)
 );
+
+CREATE TABLE IF NOT EXISTS Pagos (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    ReservaId INT NOT NULL,
+    Monto DECIMAL(10,2) NOT NULL,
+    Concepto VARCHAR(100) NOT NULL,
+    Estado VARCHAR(30) NOT NULL DEFAULT 'Pendiente',
+    FechaPago DATETIME NULL,
+    FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CreadoPorUsuarioId INT NULL,
+    ModificadoPorUsuarioId INT NULL,
+    FechaModificacion DATETIME NULL,
+    FOREIGN KEY (ReservaId) REFERENCES Reservas(Id),
+    FOREIGN KEY (CreadoPorUsuarioId) REFERENCES Usuarios(Id),
+    FOREIGN KEY (ModificadoPorUsuarioId) REFERENCES Usuarios(Id)
+);
+
+INSERT INTO Usuarios (Email, PasswordHash, Rol)
+SELECT 'admin@demo.local', 'AQAAAAIAAYagAAAAEAsxUvQjK5JgASTZ+JhBueGcFmPkY8qz1X3NxAzsUuSBNMSfM2SUj14Au2F6TmTAlQ==', 'Administrador'
+WHERE NOT EXISTS (SELECT 1 FROM Usuarios WHERE Email = 'admin@demo.local');
 
 
 INSERT INTO Propietarios (Nombre, Apellido,Dni, Email, Telefono)

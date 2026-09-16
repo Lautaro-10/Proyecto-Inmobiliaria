@@ -49,8 +49,4 @@ public class Inmueble
     public bool Disponible { get; set; } = true;
 
 
-    [Required]
-    public int TipoInmueble { get; set; }
-    public TipoInmueble? tipo { get; set; }
-
 }

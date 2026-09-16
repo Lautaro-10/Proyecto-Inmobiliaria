@@ -1,7 +1,7 @@
 using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
-
+using Microsoft.AspNetCore.Authorization;
 namespace Inmobiliaria.Controllers;
 
 public class TiposInmuebleController : Controller
@@ -96,10 +96,12 @@ public class TiposInmuebleController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [Authorize(Roles = "Administrador")]
     public IActionResult Delete(int id) => Details(id);
 
     [HttpPost]
     [ActionName("Delete")]
+    [Authorize(Roles = "Administrador")]
     [ValidateAntiForgeryToken]
     public IActionResult DeleteConfirmed(int id)
     {

@@ -1,6 +1,7 @@
 using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
+using Microsoft.AspNetCore.Authorization;
 namespace Inmobiliaria.Controllers;
 
 public class InquilinosController : Controller
@@ -13,7 +14,7 @@ public class InquilinosController : Controller
         }
 
 
-
+[Authorize(Roles = "Administrador")]
 public IActionResult Index()
     {
         var inquilinos = new List<Inquilino>();
@@ -225,6 +226,7 @@ public IActionResult Index()
 
     [HttpPost]
     [ActionName("Delete")]
+    [Authorize(Roles = "Administrador")]
     [ValidateAntiForgeryToken]
     
     public IActionResult DeleteConfirmed(int id)
