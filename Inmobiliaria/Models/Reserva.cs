@@ -26,12 +26,13 @@ public class Reserva
     public decimal MontoDiario { get; set; }
 
     [Required]
-    public bool estado { get;set; }
-
-    [Required]
-    [DataType(DataType.Date)]
-    public DateTime fecha_creacion { get; set; }
-
-
+    public string Estado { get; set; } = "Pendiente";
+    public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
+    public int? CreadoPorUsuarioId { get; set; }
+    public int? TerminadoPorUsuarioId { get; set; }
+    public DateTime? FechaTerminacion { get; set; }
+    public DateTime? FechaFinOriginal { get; set; }
+    public Usuario? CreadoPorUsuario { get; set; }
+    public Usuario? TerminadoPorUsuario { get; set; }
 
 }

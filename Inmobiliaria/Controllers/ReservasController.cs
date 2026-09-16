@@ -2,9 +2,12 @@ using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using MySqlConnector;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Inmobiliaria.Controllers;
 
+[Authorize]
 public class ReservasController : Controller
 {
     private readonly string _connectionString;
@@ -45,7 +48,7 @@ public class ReservasController : Controller
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
-            string sql = @"SELECT r.Id, r.FechaInicio, r.FechaFin, r.MontoDiario,
+            string sql = @"SELECT r.Id, r.FechaInicio, r.FechaFin,  r.FechaFinOriginal, r.MontoDiario,r.Estado, r.FechaCreacion, r.FechaTerminacion, r.CreadoPorUsuarioId, r.TerminadoPorUsuarioId,
                                   i.Nombre AS InmuebleNombre, inq.Nombre AS InqNombre, inq.Apellido AS InqApellido
                            FROM Reservas r
                            INNER JOIN Inmuebles i ON r.InmuebleId = i.Id
@@ -61,6 +64,12 @@ public class ReservasController : Controller
                     FechaInicio = Convert.ToDateTime(reader["FechaInicio"]),
                     FechaFin = Convert.ToDateTime(reader["FechaFin"]),
                     MontoDiario = Convert.ToDecimal(reader["MontoDiario"]),
+                    Estado = reader["Estado"].ToString() ?? "Pendiente",
+                    FechaCreacion = Convert.ToDateTime(reader["FechaCreacion"]),
+                    FechaFinOriginal = reader["FechaFinOriginal"] == DBNull.Value ? null : Convert.ToDateTime(reader["FechaFinOriginal"]),
+                    FechaTerminacion = reader["FechaTerminacion"] == DBNull.Value ? null : Convert.ToDateTime(reader["FechaTerminacion"]),
+                    CreadoPorUsuarioId = reader["CreadoPorUsuarioId"] == DBNull.Value ? null : Convert.ToInt32(reader["CreadoPorUsuarioId"]),
+                    TerminadoPorUsuarioId = reader["TerminadoPorUsuarioId"] == DBNull.Value ? null : Convert.ToInt32(reader["TerminadoPorUsuarioId"]),
                     Inmueble = new Inmueble { Nombre = reader["InmuebleNombre"].ToString() ?? "" },
                     Inquilino = new Inquilino { Nombre = reader["InqNombre"].ToString() ?? "", Apellido = reader["InqApellido"].ToString() ?? "" }
                 });
@@ -75,7 +84,7 @@ public class ReservasController : Controller
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
-            string sql = @"SELECT r.Id, r.FechaInicio, r.FechaFin, r.MontoDiario, r.InmuebleId, r.InquilinoId,
+            string sql = @"SELECT r.Id, r.FechaInicio, r.FechaFin, r.MontoDiario, r.InmuebleId, r.InquilinoId, r.Estado, r.FechaCreacion, r.FechaFinOriginal, r.FechaTerminacion, r.CreadoPorUsuarioId, r.TerminadoPorUsuarioId,
                                   i.Nombre AS InmuebleNombre, i.Direccion, i.PrecioPorDia,
                                   inq.Nombre AS InqNombre, inq.Apellido AS InqApellido, inq.Dni, inq.Telefono, inq.Email
                            FROM Reservas r
