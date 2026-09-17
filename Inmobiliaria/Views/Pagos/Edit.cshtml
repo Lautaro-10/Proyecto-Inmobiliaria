@@ -1,0 +1,27 @@
+@model Inmobiliaria.Models.Pago
+@{
+    var reserva = (Inmobiliaria.Models.Reserva)ViewBag.Reserva;
+    ViewData["Title"] = "Editar pago";
+}
+
+<h2>Editar concepto del pago #@Model.Id</h2>
+<p class="text-muted">Importe: $@Model.Monto.ToString("N2") · Fecha: @Model.FechaPago?.ToString("dd/MM/yyyy")</p>
+
+<form asp-action="Edit" method="post">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="ReservaId" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Concepto" class="form-label"></label>
+        <input asp-for="Concepto" class="form-control" />
+        <span asp-validation-for="Concepto" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-success">Guardar concepto</button>
+    <a asp-action="Index" asp-route-reservaId="@reserva.Id" class="btn btn-secondary">Cancelar</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

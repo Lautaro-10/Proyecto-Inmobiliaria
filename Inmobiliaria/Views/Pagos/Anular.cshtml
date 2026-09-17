@@ -1,0 +1,25 @@
+@model Inmobiliaria.Models.Pago
+@{
+    var reserva = (Inmobiliaria.Models.Reserva)ViewBag.Reserva;
+    ViewData["Title"] = "Anular pago";
+}
+
+<h2>Anular pago</h2>
+<div class="alert alert-warning">
+    El pago seguirá visible, pero quedará marcado como anulado. No se eliminará su importe ni su fecha.
+</div>
+
+<dl class="row">
+    <dt class="col-sm-3">Concepto</dt>
+    <dd class="col-sm-9">@Model.Concepto</dd>
+    <dt class="col-sm-3">Importe</dt>
+    <dd class="col-sm-9">$@Model.Monto.ToString("N2")</dd>
+    <dt class="col-sm-3">Fecha</dt>
+    <dd class="col-sm-9">@Model.FechaPago?.ToString("dd/MM/yyyy")</dd>
+</dl>
+
+<form asp-action="Anular" method="post">
+    <input type="hidden" name="id" value="@Model.Id" />
+    <button type="submit" class="btn btn-danger">Confirmar anulación</button>
+    <a asp-action="Index" asp-route-reservaId="@reserva.Id" class="btn btn-secondary">Cancelar</a>
+</form>
