@@ -25,6 +25,10 @@ else
                 <th>Concepto</th>
                 <th>Importe</th>
                 <th>Estado</th>
+                @if (User.IsInRole("Administrador"))
+                {
+                    <th>Auditoría</th>
+                }
                 <th style="width: 220px;">Acciones</th>
             </tr>
         </thead>
@@ -38,6 +42,10 @@ else
                 <td>
                     <span class="badge @(pago.Estado == "Anulado" ? "bg-danger" : "bg-success")">@pago.Estado</span>
                 </td>
+                @if (User.IsInRole("Administrador"))
+                {
+                    <td>Creado: @(pago.CreadoPorUsuario?.Email ?? "No disponible")<br />Modificado: @(pago.ModificadoPorUsuario?.Email ?? "-")</td>
+                }
                 <td>
                     @if (pago.Estado != "Anulado")
                     {

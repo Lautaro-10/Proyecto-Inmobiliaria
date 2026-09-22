@@ -14,6 +14,9 @@ public class Propietario
     [StringLength(100, ErrorMessage = "El apellido no puede superar los 100 caracteres.")]
     public string Apellido { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "El DNI es obligatorio.")]
+    public string Dni { get; set; } = string.Empty;
+
     [Required(ErrorMessage = "El teléfono es obligatorio.")]
     [Phone(ErrorMessage = "El teléfono no tiene un formato válido.")]
     public string Telefono { get; set; } = string.Empty;

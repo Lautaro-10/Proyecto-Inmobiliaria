@@ -25,10 +25,12 @@ public class PagosController : Controller
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
         const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
-                                    FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
-                                    FechaModificacion
-                             FROM Pagos
-                             WHERE ReservaId = @reservaId
+                                     FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
+                                     FechaModificacion, uc.Email AS CreadorEmail, um.Email AS ModificadorEmail
+                                 FROM Pagos p
+                                 LEFT JOIN Usuarios uc ON uc.Id = p.CreadoPorUsuarioId
+                                 LEFT JOIN Usuarios um ON um.Id = p.ModificadoPorUsuarioId
+                             WHERE p.ReservaId = @reservaId
                              ORDER BY FechaPago DESC, Id DESC";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@reservaId", reservaId);
@@ -81,7 +83,7 @@ public class PagosController : Controller
         command.Parameters.AddWithValue("@reservaId", pago.ReservaId);
         command.Parameters.AddWithValue("@monto", pago.Monto);
         command.Parameters.AddWithValue("@concepto", pago.Concepto);
-        command.Parameters.AddWithValue("@fechaPago", pago.FechaPago.Value);
+        command.Parameters.AddWithValue("@fechaPago", pago.FechaPago ?? throw new InvalidOperationException("La fecha de pago es obligatoria."));
         command.Parameters.AddWithValue("@usuarioId", UsuarioActualId());
         command.ExecuteNonQuery();
 
@@ -171,9 +173,12 @@ public class PagosController : Controller
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
         const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
-                                    FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
-                                    FechaModificacion
-                             FROM Pagos WHERE Id = @id";
+                                     FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
+                                     FechaModificacion, uc.Email AS CreadorEmail, um.Email AS ModificadorEmail
+                                 FROM Pagos p
+                                 LEFT JOIN Usuarios uc ON uc.Id = p.CreadoPorUsuarioId
+                                 LEFT JOIN Usuarios um ON um.Id = p.ModificadoPorUsuarioId
+                                 WHERE p.Id = @id";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@id", id);
         using var reader = command.ExecuteReader();
@@ -218,7 +223,9 @@ public class PagosController : Controller
         FechaCreacion = reader.GetDateTime("FechaCreacion"),
         CreadoPorUsuarioId = reader.IsDBNull(reader.GetOrdinal("CreadoPorUsuarioId")) ? null : reader.GetInt32("CreadoPorUsuarioId"),
         ModificadoPorUsuarioId = reader.IsDBNull(reader.GetOrdinal("ModificadoPorUsuarioId")) ? null : reader.GetInt32("ModificadoPorUsuarioId"),
-        FechaModificacion = reader.IsDBNull(reader.GetOrdinal("FechaModificacion")) ? null : reader.GetDateTime("FechaModificacion")
+        FechaModificacion = reader.IsDBNull(reader.GetOrdinal("FechaModificacion")) ? null : reader.GetDateTime("FechaModificacion"),
+        CreadoPorUsuario = reader.IsDBNull(reader.GetOrdinal("CreadorEmail")) ? null : new Usuario { Email = reader.GetString("CreadorEmail") },
+        ModificadoPorUsuario = reader.IsDBNull(reader.GetOrdinal("ModificadorEmail")) ? null : new Usuario { Email = reader.GetString("ModificadorEmail") }
     };
 
     private int UsuarioActualId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS Inmuebles (
     FechaCreacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PropietarioId INT NOT NULL,
     TipoInmuebleId INT NOT NULL,
-    FechaCreacion DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (PropietarioId) REFERENCES Propietarios(Id),
     FOREIGN KEY (TipoInmuebleId) REFERENCES TiposInmueble(Id)
 );

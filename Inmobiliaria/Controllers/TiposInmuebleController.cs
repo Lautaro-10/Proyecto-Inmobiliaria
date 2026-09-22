@@ -4,6 +4,7 @@ using MySqlConnector;
 using Microsoft.AspNetCore.Authorization;
 namespace Inmobiliaria.Controllers;
 
+[Authorize]
 public class TiposInmuebleController : Controller
 {
     private readonly string _connectionString;

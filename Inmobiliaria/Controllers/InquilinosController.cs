@@ -4,6 +4,7 @@ using MySqlConnector;
 using Microsoft.AspNetCore.Authorization;
 namespace Inmobiliaria.Controllers;
 
+[Authorize]
 public class InquilinosController : Controller
 {
     private readonly String _connectionString;
@@ -14,7 +15,6 @@ public class InquilinosController : Controller
         }
 
 
-[Authorize(Roles = "Administrador")]
 public IActionResult Index()
     {
         var inquilinos = new List<Inquilino>();
@@ -187,6 +187,7 @@ public IActionResult Index()
         }
         
 
+    [Authorize(Roles = "Administrador")]
     public IActionResult Delete(int id)
     {
         Inquilino? inquilino = null;
