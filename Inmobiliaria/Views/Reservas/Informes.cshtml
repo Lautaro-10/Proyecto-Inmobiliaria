@@ -1,0 +1,30 @@
+@using Inmobiliaria.Models
+@model object
+@{
+    ViewData["Title"] = "Informes de reservas";
+    var tipo = (string)ViewBag.Tipo;
+    var dias = (int)ViewBag.Dias;
+}
+<h2>Informes</h2>
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-4"><select name="tipo" class="form-select"><option value="vigentes" selected="@(tipo == "vigentes")">Reservas vigentes</option><option value="proximas" selected="@(tipo == "proximas")">Reservas próximas a finalizar</option><option value="mas-reservados" selected="@(tipo == "mas-reservados")">Más reservados últimos 365 días</option><option value="sin-reservas" selected="@(tipo == "sin-reservas")">Sin reservas recientes</option><option value="por-propietario" selected="@(tipo == "por-propietario")">Inmuebles por propietario</option></select></div>
+    <div class="col-md-3"><select name="propietarioId" asp-items="ViewBag.Propietarios" class="form-select"><option value="">Todos los propietarios</option></select></div>
+    <div class="col-md-3"><input type="number" name="dias" value="@dias" min="1" class="form-control" title="Días" /></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-primary">Consultar</button></div>
+</form>
+
+@if (tipo == "vigentes" || tipo == "proximas")
+{
+    var reservas = (IEnumerable<InformeReservaViewModel>)Model;
+    <table class="table table-striped"><thead class="table-dark"><tr><th>Inmueble</th><th>Inquilino</th><th>Desde</th><th>Hasta</th><th>Estado</th></tr></thead><tbody>
+    @foreach (var reserva in reservas) { <tr><td>@reserva.Inmueble</td><td>@reserva.Inquilino</td><td>@reserva.FechaInicio.ToString("dd/MM/yyyy")</td><td>@reserva.FechaFin.ToString("dd/MM/yyyy")</td><td>@reserva.Estado</td></tr> }
+    </tbody></table>
+}
+else
+{
+    var inmuebles = (IEnumerable<InformeInmuebleViewModel>)Model;
+    <table class="table table-striped"><thead class="table-dark"><tr><th>Inmueble</th><th>Propietario</th><th>Reservas</th><th>Última reserva</th></tr></thead><tbody>
+    @foreach (var inmueble in inmuebles) { <tr><td>@inmueble.Nombre</td><td>@inmueble.Propietario</td><td>@inmueble.CantidadReservas</td><td>@inmueble.UltimaReserva?.ToString("dd/MM/yyyy")</td></tr> }
+    </tbody></table>
+}
+<a asp-action="Index" class="btn btn-secondary">Volver a reservas</a>

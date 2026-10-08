@@ -1,0 +1,66 @@
+@model Inmobiliaria.Models.ReservaListadoViewModel
+@{
+    ViewData["Title"] = "Reservas";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Reservas</h2>
+    <div>
+        <a asp-action="Disponibles" class="btn btn-outline-primary">Buscar disponibilidad</a>
+        <a asp-action="Create" class="btn btn-primary">Nueva reserva</a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-6"><input name="buscar" value="@Model.Buscar" class="form-control" placeholder="Buscar inmueble o inquilino" /></div>
+    <div class="col-md-3">
+        <select name="estado" class="form-select">
+            <option value="">Todos los estados</option>
+            <option value="Activa" selected="@(Model.Estado == "Activa")">Activa</option>
+            <option value="Pendiente" selected="@(Model.Estado == "Pendiente")">Pendiente</option>
+            <option value="Terminada" selected="@(Model.Estado == "Terminada")">Terminada</option>
+        </select>
+    </div>
+    <div class="col-md-3"><button class="btn btn-secondary w-100" type="submit">Filtrar</button></div>
+</form>
+
+@if (Model.Reservas.Count == 0)
+{
+    <div class="alert alert-info">No se encontraron reservas.</div>
+}
+else
+{
+    <table class="table table-striped table-bordered">
+        <thead class="table-dark"><tr><th>Inmueble</th><th>Inquilino</th><th>Desde</th><th>Hasta</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody>
+        @foreach (var reserva in Model.Reservas)
+        {
+            <tr>
+                <td>@reserva.Inmueble?.Nombre</td>
+                <td>@reserva.Inquilino?.Apellido, @reserva.Inquilino?.Nombre</td>
+                <td>@reserva.FechaInicio.ToString("dd/MM/yyyy")</td>
+                <td>@reserva.FechaFin.ToString("dd/MM/yyyy")</td>
+                <td><span class="badge bg-secondary">@reserva.Estado</span></td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@reserva.Id" class="btn btn-sm btn-info">Detalle</a>
+                    @if (reserva.Estado == "Activa" || reserva.Estado == "Pendiente")
+                    {
+                        <a asp-action="Terminar" asp-route-id="@reserva.Id" class="btn btn-sm btn-warning">Finalizar</a>
+                    }
+                    <a asp-action="Renovar" asp-route-id="@reserva.Id" class="btn btn-sm btn-success">Renovar</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    <nav>
+        <ul class="pagination">
+        @for (var i = 1; i <= Model.TotalPaginas; i++)
+        {
+            <li class="page-item @(i == Model.Pagina ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-pagina="@i" asp-route-buscar="@Model.Buscar" asp-route-estado="@Model.Estado">@i</a></li>
+        }
+        </ul>
+    </nav>
+}
+
+<a asp-action="Informes" class="btn btn-outline-dark">Informes</a>

@@ -1,0 +1,16 @@
+@model Inmobiliaria.Models.TerminarReservaViewModel
+@{
+    ViewData["Title"] = "Finalizar reserva";
+}
+<h2>Finalizar reserva #@Model.ReservaId</h2>
+<p>Inmueble: <strong>@Model.Reserva?.Inmueble?.Nombre</strong> | Período original: @Model.Reserva?.FechaInicio.ToString("dd/MM/yyyy") a @((Model.Reserva?.FechaFinOriginal ?? Model.Reserva?.FechaFin)?.ToString("dd/MM/yyyy"))</p>
+<form asp-action="Terminar" method="post">
+    <input asp-for="ReservaId" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3"><label asp-for="FechaTerminacion" class="form-label">Fecha efectiva de terminación</label><input asp-for="FechaTerminacion" class="form-control" type="date" /><span asp-validation-for="FechaTerminacion" class="text-danger"></span></div>
+    <div class="alert alert-warning">La multa calculada es de <strong>$@Model.Multa.ToString("N2")</strong>. Se registrará como pago al confirmar.</div>
+    <div class="mb-3"><label asp-for="Concepto" class="form-label"></label><input asp-for="Concepto" class="form-control" /></div>
+    <div class="form-check mb-3"><input asp-for="ConfirmarPago" class="form-check-input" /><label asp-for="ConfirmarPago" class="form-check-label">Confirmo que la multa fue pagada</label><span asp-validation-for="ConfirmarPago" class="text-danger d-block"></span></div>
+    <button type="submit" class="btn btn-danger">Finalizar y registrar multa</button><a asp-action="Details" asp-route-id="@Model.ReservaId" class="btn btn-secondary ms-2">Cancelar</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

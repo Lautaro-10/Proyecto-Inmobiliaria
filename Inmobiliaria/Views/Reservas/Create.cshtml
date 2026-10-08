@@ -1,0 +1,13 @@
+@model Inmobiliaria.Models.Reserva
+@{
+    ViewData["Title"] = "Nueva reserva";
+}
+<h2>Nueva reserva</h2>
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3"><label asp-for="InquilinoId" class="form-label">Inquilino</label><select asp-for="InquilinoId" asp-items="ViewBag.Inquilinos" class="form-select"><option value="">Seleccione un inquilino</option></select><span asp-validation-for="InquilinoId" class="text-danger"></span></div>
+    <div class="mb-3"><label asp-for="InmuebleId" class="form-label">Inmueble</label><select asp-for="InmuebleId" asp-items="ViewBag.Inmuebles" class="form-select"><option value="">Seleccione un inmueble</option></select><span asp-validation-for="InmuebleId" class="text-danger"></span></div>
+    <div class="row"><div class="col-md-4 mb-3"><label asp-for="FechaInicio" class="form-label"></label><input asp-for="FechaInicio" class="form-control" type="date" /><span asp-validation-for="FechaInicio" class="text-danger"></span></div><div class="col-md-4 mb-3"><label asp-for="FechaFin" class="form-label"></label><input asp-for="FechaFin" class="form-control" type="date" /><span asp-validation-for="FechaFin" class="text-danger"></span></div><div class="col-md-4 mb-3"><label asp-for="MontoDiario" class="form-label"></label><input asp-for="MontoDiario" class="form-control" type="number" min="0.01" step="0.01" /><span asp-validation-for="MontoDiario" class="text-danger"></span></div></div>
+    <button type="submit" class="btn btn-success">Guardar reserva</button><a asp-action="Index" class="btn btn-secondary ms-2">Cancelar</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

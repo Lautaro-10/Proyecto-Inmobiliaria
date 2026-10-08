@@ -33,6 +33,21 @@
             <dt class="col-sm-3">Fecha de Fin</dt>
             <dd class="col-sm-9">@Model.FechaFin.ToString("dd/MM/yyyy")</dd>
 
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9">@Model.Estado</dd>
+
+            @if (Model.FechaFinOriginal.HasValue)
+            {
+                <dt class="col-sm-3">Fecha de Fin Original</dt>
+                <dd class="col-sm-9">@Model.FechaFinOriginal.Value.ToString("dd/MM/yyyy")</dd>
+            }
+
+            @if (Model.FechaTerminacion.HasValue)
+            {
+                <dt class="col-sm-3">Fecha de Terminación</dt>
+                <dd class="col-sm-9">@Model.FechaTerminacion.Value.ToString("dd/MM/yyyy")</dd>
+            }
+
             <dt class="col-sm-3">Monto Diario</dt>
             <dd class="col-sm-9">$@Model.MontoDiario</dd>
 
@@ -41,10 +56,26 @@
 
             <dt class="col-sm-3">Costo Total Estimado</dt>
             <dd class="col-sm-9"><strong>$@costoEstimado</strong></dd>
+
+            @if (User.IsInRole("Administrador"))
+            {
+                <dt class="col-sm-3">Creada por</dt>
+                <dd class="col-sm-9">@(Model.CreadoPorUsuario?.Email ?? "No disponible")</dd>
+                @if (Model.TerminadoPorUsuario != null)
+                {
+                    <dt class="col-sm-3">Finalizada por</dt>
+                    <dd class="col-sm-9">@Model.TerminadoPorUsuario.Email</dd>
+                }
+            }
         </dl>
     </div>
     <div class="card-footer">
         <a asp-controller="Pagos" asp-action="Index" asp-route-reservaId="@Model.Id" class="btn btn-primary">Ver pagos</a>
+        @if (Model.Estado == "Activa" || Model.Estado == "Pendiente")
+        {
+            <a asp-action="Terminar" asp-route-id="@Model.Id" class="btn btn-warning">Finalizar</a>
+        }
+        <a asp-action="Renovar" asp-route-id="@Model.Id" class="btn btn-success">Renovar</a>
         <a asp-action="Index" class="btn btn-secondary">Volver al listado</a>
     </div>
 </div>
