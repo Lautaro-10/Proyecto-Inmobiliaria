@@ -1,113 +1,87 @@
 using Inmobiliaria.Models;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MySqlConnector;
+
 namespace Inmobiliaria.Controllers;
 
+[Authorize]
 public class PropietariosController : Controller
 {
-    private static readonly List<Propietario> _propietarios = new()
-    {
-        new Propietario(1, "Lautaro", "Cadelago", "1122334455", "lautaro.cadelago@mail.com"),
-        new Propietario(2, "Maria", "Gomez", "1144556677", "maria.gomez@mail.com"),
-        new Propietario(3, "Carlos", "López", "1188997766", "carlos.lopez@mail.com")
-    };
+    private readonly string _connectionString;
 
-    private static int _nextId = _propietarios.Count + 1;
+    public PropietariosController(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+    }
 
     public IActionResult Index()
     {
-        var propietarios = _propietarios
-            .OrderBy(p => p.Apellido)
-            .ThenBy(p => p.Nombre)
-            .ToList();
-
+        var propietarios = new List<Propietario>();
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        using var command = new MySqlCommand("SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Propietarios ORDER BY Apellido, Nombre", connection);
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) propietarios.Add(Mapear(reader));
         return View(propietarios);
     }
 
-    public IActionResult Create()
-    {
-        return View();
-    }
+    public IActionResult Create() => View();
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Create(Propietario propietario)
     {
-        if (!ModelState.IsValid)
+        if (!ModelState.IsValid) return View(propietario);
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        const string sql = "INSERT INTO Propietarios (Nombre, Apellido, Dni, Telefono, Email) VALUES (@nombre, @apellido, @dni, @telefono, @email)";
+        using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@nombre", propietario.Nombre);
+        command.Parameters.AddWithValue("@apellido", propietario.Apellido);
+        command.Parameters.AddWithValue("@dni", propietario.Dni);
+        command.Parameters.AddWithValue("@telefono", propietario.Telefono);
+        command.Parameters.AddWithValue("@email", propietario.Email);
+        try { command.ExecuteNonQuery(); }
+        catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.DuplicateKeyEntry)
         {
+            ModelState.AddModelError(string.Empty, "Ya existe un propietario con esos datos.");
             return View(propietario);
         }
-
-        if (_propietarios.Any(p => p.Email.Equals(propietario.Email, StringComparison.OrdinalIgnoreCase)))
-        {
-            ModelState.AddModelError(nameof(Propietario.Email), "Ya existe un propietario con ese email.");
-            return View(propietario);
-        }
-
-        propietario.Id = _nextId++;
-        _propietarios.Add(propietario);
-
         return RedirectToAction(nameof(Index));
     }
 
     public IActionResult Edit(int id)
     {
-        var propietario = _propietarios.FirstOrDefault(p => p.Id == id);
-
-        if (propietario == null)
-        {
-            return NotFound();
-        }
-
-        return View(propietario);
+        var propietario = ObtenerPorId(id);
+        return propietario == null ? NotFound() : View(propietario);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Edit(int id, Propietario propietario)
     {
-        if (id != propietario.Id)
-        {
-            return BadRequest();
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return View(propietario);
-        }
-
-        var propietarioExistente = _propietarios.FirstOrDefault(p => p.Id == id);
-
-        if (propietarioExistente == null)
-        {
-            return NotFound();
-        }
-
-        if (_propietarios.Any(p => p.Id != id && p.Email.Equals(propietario.Email, StringComparison.OrdinalIgnoreCase)))
-        {
-            ModelState.AddModelError(nameof(Propietario.Email), "Ya existe otro propietario con ese email.");
-            return View(propietario);
-        }
-
-        propietarioExistente.Nombre = propietario.Nombre;
-        propietarioExistente.Apellido = propietario.Apellido;
-        propietarioExistente.Telefono = propietario.Telefono;
-        propietarioExistente.Email = propietario.Email;
-
+        if (id != propietario.Id) return BadRequest();
+        if (!ModelState.IsValid) return View(propietario);
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        const string sql = "UPDATE Propietarios SET Nombre = @nombre, Apellido = @apellido, Dni = @dni, Telefono = @telefono, Email = @email WHERE Id = @id";
+        using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@id", id);
+        command.Parameters.AddWithValue("@nombre", propietario.Nombre);
+        command.Parameters.AddWithValue("@apellido", propietario.Apellido);
+        command.Parameters.AddWithValue("@dni", propietario.Dni);
+        command.Parameters.AddWithValue("@telefono", propietario.Telefono);
+        command.Parameters.AddWithValue("@email", propietario.Email);
+        command.ExecuteNonQuery();
         return RedirectToAction(nameof(Index));
     }
-    
+
     [Authorize(Roles = "Administrador")]
     public IActionResult Delete(int id)
     {
-        var propietario = _propietarios.FirstOrDefault(p => p.Id == id);
-
-        if (propietario == null)
-        {
-            return NotFound();
-        }
-
-        return View(propietario);
+        var propietario = ObtenerPorId(id);
+        return propietario == null ? NotFound() : View(propietario);
     }
 
     [HttpPost]
@@ -116,14 +90,31 @@ public class PropietariosController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult DeleteConfirmed(int id)
     {
-        var propietario = _propietarios.FirstOrDefault(p => p.Id == id);
-
-        if (propietario == null)
-        {
-            return NotFound();
-        }
-
-        _propietarios.Remove(propietario);
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        using var command = new MySqlCommand("DELETE FROM Propietarios WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", id);
+        command.ExecuteNonQuery();
         return RedirectToAction(nameof(Index));
     }
+
+    private Propietario? ObtenerPorId(int id)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        using var command = new MySqlCommand("SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Propietarios WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", id);
+        using var reader = command.ExecuteReader();
+        return reader.Read() ? Mapear(reader) : null;
+    }
+
+    private static Propietario Mapear(MySqlDataReader reader) => new()
+    {
+        Id = reader.GetInt32("Id"),
+        Nombre = reader.GetString("Nombre"),
+        Apellido = reader.GetString("Apellido"),
+        Dni = reader.GetString("Dni"),
+        Telefono = reader.GetString("Telefono"),
+        Email = reader.GetString("Email")
+    };
 }
