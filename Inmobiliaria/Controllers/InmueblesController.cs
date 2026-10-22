@@ -91,7 +91,7 @@ public class InmueblesController : Controller
     public IActionResult Create()
     {
         CargarSelectLists();
-        return View();
+        return View(new Inmueble());
     }
 
     [HttpPost]
@@ -108,8 +108,8 @@ public class InmueblesController : Controller
         {
             connection.Open();
             string sql = @"INSERT INTO Inmuebles 
-                (Nombre, Descripcion, Direccion, Cupo, Latitud, Longitud, PrecioPorDia, PorcentajeReserva, Disponible, PropietarioId, TipoInmuebleId)
-                VALUES (@nombre, @desc, @dir, @cupo, @lat, @lng, @precio, @porc, @disp, @propId, @tipoId)";
+                (Nombre, Descripcion, Direccion, Cupo, Latitud, Longitud, PrecioPorDia, PorcentajeReserva, ImagenPortada, ImagenesAdicionales, Disponible, PropietarioId, TipoInmuebleId)
+                VALUES (@nombre, @desc, @dir, @cupo, @lat, @lng, @precio, @porc, @imagenPortada, @imagenesAdicionales, @disp, @propId, @tipoId)";
             using var cmd = new MySqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@nombre", inmueble.Nombre);
             cmd.Parameters.AddWithValue("@desc", inmueble.Descripcion);
@@ -119,6 +119,8 @@ public class InmueblesController : Controller
             cmd.Parameters.AddWithValue("@lng", (object?)inmueble.Longitud ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@precio", inmueble.PrecioPorDia);
             cmd.Parameters.AddWithValue("@porc", inmueble.PorcentajeReserva);
+            cmd.Parameters.AddWithValue("@imagenPortada", inmueble.ImagenPortada);
+            cmd.Parameters.AddWithValue("@imagenesAdicionales", (object?)inmueble.ImagenesAdicionales ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@disp", inmueble.Disponible ? 1 : 0);
             cmd.Parameters.AddWithValue("@propId", inmueble.PropietarioId);
             cmd.Parameters.AddWithValue("@tipoId", inmueble.TipoInmuebleId);
@@ -151,6 +153,7 @@ public class InmueblesController : Controller
             string sql = @"UPDATE Inmuebles SET 
                 Nombre = @nombre, Descripcion = @desc, Direccion = @dir, Cupo = @cupo, 
                 Latitud = @lat, Longitud = @lng, PrecioPorDia = @precio, PorcentajeReserva = @porc, 
+                ImagenPortada = @imagenPortada, ImagenesAdicionales = @imagenesAdicionales,
                 Disponible = @disp, PropietarioId = @propId, TipoInmuebleId = @tipoId
                 WHERE Id = @id";
             using var cmd = new MySqlCommand(sql, connection);
@@ -163,6 +166,8 @@ public class InmueblesController : Controller
             cmd.Parameters.AddWithValue("@lng", (object?)inmueble.Longitud ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@precio", inmueble.PrecioPorDia);
             cmd.Parameters.AddWithValue("@porc", inmueble.PorcentajeReserva);
+            cmd.Parameters.AddWithValue("@imagenPortada", inmueble.ImagenPortada);
+            cmd.Parameters.AddWithValue("@imagenesAdicionales", (object?)inmueble.ImagenesAdicionales ?? DBNull.Value);
             cmd.Parameters.AddWithValue("@disp", inmueble.Disponible ? 1 : 0);
             cmd.Parameters.AddWithValue("@propId", inmueble.PropietarioId);
             cmd.Parameters.AddWithValue("@tipoId", inmueble.TipoInmuebleId);
@@ -172,7 +177,11 @@ public class InmueblesController : Controller
     }
 
     [Authorize(Roles = "Administrador")]
-    public IActionResult Delete(int id) => Details(id);
+    public IActionResult Delete(int id)
+    {
+        var inmueble = ObtenerPorId(id);
+        return inmueble == null ? NotFound() : View(inmueble);
+    }
 
     [HttpPost]
     [ActionName("Delete")]
@@ -186,7 +195,17 @@ public class InmueblesController : Controller
             string sql = "DELETE FROM Inmuebles WHERE Id = @id";
             using var cmd = new MySqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@id", id);
-            cmd.ExecuteNonQuery();
+            try
+            {
+                if (cmd.ExecuteNonQuery() == 0) return NotFound();
+            }
+            catch (MySqlException ex) when (ex.Number == 1451)
+            {
+                var inmueble = ObtenerPorId(id);
+                if (inmueble == null) return NotFound();
+                ModelState.AddModelError(string.Empty, "No se puede eliminar este inmueble porque tiene reservas asociadas.");
+                return View("Delete", inmueble);
+            }
         }
         return RedirectToAction(nameof(Index));
     }
@@ -213,6 +232,8 @@ public class InmueblesController : Controller
         Longitud = r["Longitud"] != DBNull.Value ? Convert.ToDecimal(r["Longitud"]) : null,
         PrecioPorDia = Convert.ToDecimal(r["PrecioPorDia"]),
         PorcentajeReserva = Convert.ToDecimal(r["PorcentajeReserva"]),
+        ImagenPortada = r["ImagenPortada"] == DBNull.Value ? null : r["ImagenPortada"].ToString(),
+        ImagenesAdicionales = r["ImagenesAdicionales"] == DBNull.Value ? null : r["ImagenesAdicionales"].ToString(),
         Disponible = Convert.ToBoolean(r["Disponible"]),
         PropietarioId = Convert.ToInt32(r["PropietarioId"]),
         TipoInmuebleId = Convert.ToInt32(r["TipoInmuebleId"]),
@@ -231,6 +252,8 @@ public class InmueblesController : Controller
         Longitud = r["Longitud"] != DBNull.Value ? Convert.ToDecimal(r["Longitud"]) : null,
         PrecioPorDia = Convert.ToDecimal(r["PrecioPorDia"]),
         PorcentajeReserva = Convert.ToDecimal(r["PorcentajeReserva"]),
+        ImagenPortada = r["ImagenPortada"] == DBNull.Value ? null : r["ImagenPortada"].ToString(),
+        ImagenesAdicionales = r["ImagenesAdicionales"] == DBNull.Value ? null : r["ImagenesAdicionales"].ToString(),
         Disponible = Convert.ToBoolean(r["Disponible"]),
         PropietarioId = Convert.ToInt32(r["PropietarioId"]),
         TipoInmuebleId = Convert.ToInt32(r["TipoInmuebleId"])

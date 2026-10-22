@@ -40,13 +40,14 @@ public class Inmueble
     [Range(1, 10000000)]
     public decimal PrecioPorDia { get; set; }
 
-    [Required]
+    [Required, Range(0, 100)]
     public decimal PorcentajeReserva { get; set; } = 10.0m;
 
-   [Required]
+    [Required(ErrorMessage = "La imagen de portada es requerida."), StringLength(255)]
     public string? ImagenPortada { get; set; }
-    
+
+    [StringLength(255)]
+    public string? ImagenesAdicionales { get; set; }
+
     public bool Disponible { get; set; } = true;
-
-
 }

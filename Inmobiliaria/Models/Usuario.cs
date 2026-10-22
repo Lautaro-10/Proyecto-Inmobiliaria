@@ -9,6 +9,15 @@ public class Usuario
     [Required, EmailAddress, StringLength(150)]
     public string Email { get; set; } = string.Empty;
 
+    [StringLength(100)]
+    public string Nombre { get; set; } = string.Empty;
+
+    [StringLength(100)]
+    public string Apellido { get; set; } = string.Empty;
+
+    [StringLength(255)]
+    public string? AvatarUrl { get; set; }
+
     [Required]
     public string PasswordHash { get; set; } = string.Empty;
 

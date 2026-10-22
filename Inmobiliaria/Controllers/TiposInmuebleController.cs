@@ -77,13 +77,18 @@ public class TiposInmuebleController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public IActionResult Edit(int id) => Details(id);
+    public IActionResult Edit(int id)
+    {
+        var tipo = ObtenerPorId(id);
+        return tipo == null ? NotFound() : View(tipo);
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Edit(int id, TipoInmueble tipo)
     {
-        if (id != tipo.Id || !ModelState.IsValid) return View(tipo);
+        if (id != tipo.Id) return BadRequest();
+        if (!ModelState.IsValid) return View(tipo);
 
         using (var connection = new MySqlConnection(_connectionString))
         {
@@ -98,7 +103,11 @@ public class TiposInmuebleController : Controller
     }
 
     [Authorize(Roles = "Administrador")]
-    public IActionResult Delete(int id) => Details(id);
+    public IActionResult Delete(int id)
+    {
+        var tipo = ObtenerPorId(id);
+        return tipo == null ? NotFound() : View(tipo);
+    }
 
     [HttpPost]
     [ActionName("Delete")]
@@ -112,8 +121,30 @@ public class TiposInmuebleController : Controller
             string sql = "DELETE FROM TiposInmueble WHERE Id = @id";
             using var command = new MySqlCommand(sql, connection);
             command.Parameters.AddWithValue("@id", id);
-            command.ExecuteNonQuery();
+            try
+            {
+                if (command.ExecuteNonQuery() == 0) return NotFound();
+            }
+            catch (MySqlException ex) when (ex.Number == 1451)
+            {
+                var tipo = ObtenerPorId(id);
+                if (tipo == null) return NotFound();
+                ModelState.AddModelError(string.Empty, "No se puede eliminar este tipo porque está asociado a uno o más inmuebles.");
+                return View("Delete", tipo);
+            }
         }
         return RedirectToAction(nameof(Index));
+    }
+
+    private TipoInmueble? ObtenerPorId(int id)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        using var command = new MySqlCommand("SELECT Id, Descripcion FROM TiposInmueble WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", id);
+        using var reader = command.ExecuteReader();
+        return reader.Read()
+            ? new TipoInmueble { Id = reader.GetInt32("Id"), Descripcion = reader.GetString("Descripcion") }
+            : null;
     }
 }
