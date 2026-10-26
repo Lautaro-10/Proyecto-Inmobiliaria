@@ -1,0 +1,71 @@
+@model Inmobiliaria.Models.PerfilUsuarioViewModel
+
+@{
+    ViewData["Title"] = "Mi perfil";
+}
+
+<h2>Mi perfil</h2>
+
+@if (TempData["Mensaje"] is string mensaje)
+{
+    <div class="alert alert-success">@mensaje</div>
+}
+
+<form asp-action="Perfil" method="post" enctype="multipart/form-data">
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="AvatarActual" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.AvatarActual))
+    {
+        <div class="mb-3">
+            <img src="@Model.AvatarActual" alt="Avatar actual" class="rounded-circle" style="width: 112px; height: 112px; object-fit: cover;" />
+        </div>
+    }
+
+    <div class="mb-3">
+        <label asp-for="Avatar" class="form-label">Avatar (PNG, JPEG o WebP; máximo 2 MB)</label>
+        <input asp-for="Avatar" type="file" accept=".png,.jpg,.jpeg,.webp" class="form-control" />
+        <span asp-validation-for="Avatar" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Nombre" class="form-label"></label>
+        <input asp-for="Nombre" class="form-control" />
+        <span asp-validation-for="Nombre" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Apellido" class="form-label"></label>
+        <input asp-for="Apellido" class="form-control" />
+        <span asp-validation-for="Apellido" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <fieldset class="border rounded p-3 mb-3">
+        <legend class="float-none w-auto px-2 fs-6">Cambiar contraseña (opcional)</legend>
+        <div class="mb-3">
+            <label asp-for="PasswordActual" class="form-label">Contraseña actual</label>
+            <input asp-for="PasswordActual" class="form-control" autocomplete="current-password" />
+            <span asp-validation-for="PasswordActual" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="NuevaPassword" class="form-label">Nueva contraseña</label>
+            <input asp-for="NuevaPassword" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="NuevaPassword" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="ConfirmarPassword" class="form-label">Confirmar nueva contraseña</label>
+            <input asp-for="ConfirmarPassword" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmarPassword" class="text-danger"></span>
+        </div>
+    </fieldset>
+
+    <button type="submit" class="btn btn-success">Guardar cambios</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

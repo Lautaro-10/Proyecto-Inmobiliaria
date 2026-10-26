@@ -1,0 +1,74 @@
+@model Inmobiliaria.Models.Inmueble
+
+<div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label asp-for="Nombre" class="form-label"></label>
+        <input asp-for="Nombre" class="form-control" />
+        <span asp-validation-for="Nombre" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="Direccion" class="form-label"></label>
+        <input asp-for="Direccion" class="form-control" />
+        <span asp-validation-for="Direccion" class="text-danger"></span>
+    </div>
+    <div class="col-12 mb-3">
+        <label asp-for="Descripcion" class="form-label"></label>
+        <textarea asp-for="Descripcion" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Descripcion" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="PropietarioId" class="form-label">Propietario</label>
+        <select asp-for="PropietarioId" asp-items="ViewBag.Propietarios" class="form-select">
+            <option value="">Seleccione un propietario</option>
+        </select>
+        <span asp-validation-for="PropietarioId" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="TipoInmuebleId" class="form-label">Tipo de inmueble</label>
+        <select asp-for="TipoInmuebleId" asp-items="ViewBag.TiposInmueble" class="form-select">
+            <option value="">Seleccione un tipo</option>
+        </select>
+        <span asp-validation-for="TipoInmuebleId" class="text-danger"></span>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label asp-for="Cupo" class="form-label"></label>
+        <input asp-for="Cupo" class="form-control" />
+        <span asp-validation-for="Cupo" class="text-danger"></span>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label asp-for="PrecioPorDia" class="form-label">Precio por día</label>
+        <input asp-for="PrecioPorDia" class="form-control" />
+        <span asp-validation-for="PrecioPorDia" class="text-danger"></span>
+    </div>
+    <div class="col-md-4 mb-3">
+        <label asp-for="PorcentajeReserva" class="form-label">Porcentaje de seña</label>
+        <input asp-for="PorcentajeReserva" class="form-control" />
+        <span asp-validation-for="PorcentajeReserva" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="Latitud" class="form-label"></label>
+        <input asp-for="Latitud" class="form-control" />
+        <span asp-validation-for="Latitud" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="Longitud" class="form-label"></label>
+        <input asp-for="Longitud" class="form-control" />
+        <span asp-validation-for="Longitud" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="ImagenPortada" class="form-label">URL o ruta de imagen de portada</label>
+        <input asp-for="ImagenPortada" class="form-control" />
+        <span asp-validation-for="ImagenPortada" class="text-danger"></span>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label asp-for="ImagenesAdicionales" class="form-label">URL o rutas de imágenes adicionales</label>
+        <textarea asp-for="ImagenesAdicionales" class="form-control" rows="2"></textarea>
+        <span asp-validation-for="ImagenesAdicionales" class="text-danger"></span>
+        <div class="form-text">Separe las rutas con comas.</div>
+    </div>
+    <div class="col-12 mb-3 form-check ms-2">
+        <input asp-for="Disponible" class="form-check-input" />
+        <label asp-for="Disponible" class="form-check-label">Disponible para alquilar</label>
+    </div>
+</div>

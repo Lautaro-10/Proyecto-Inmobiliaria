@@ -1,0 +1,65 @@
+@model IEnumerable<Inmobiliaria.Models.Inmueble>
+
+@{
+    ViewData["Title"] = "Inmuebles";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Inmuebles</h2>
+    <a asp-action="Create" class="btn btn-primary">Nuevo inmueble</a>
+</div>
+
+@if (!Model.Any())
+{
+    <div class="alert alert-info">No hay inmuebles registrados.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Portada</th>
+                    <th>Nombre</th>
+                    <th>Tipo</th>
+                    <th>Propietario</th>
+                    <th>Dirección</th>
+                    <th>Precio por día</th>
+                    <th>Disponibilidad</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var inmueble in Model)
+            {
+                <tr>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(inmueble.ImagenPortada))
+                        {
+                            <img src="@inmueble.ImagenPortada" alt="Portada de @inmueble.Nombre" style="width: 96px; height: 64px; object-fit: cover;" />
+                        }
+                    </td>
+                    <td>@inmueble.Nombre</td>
+                    <td>@inmueble.Tipo?.Descripcion</td>
+                    <td>@inmueble.Duenio?.Apellido, @inmueble.Duenio?.Nombre</td>
+                    <td>@inmueble.Direccion</td>
+                    <td>$@inmueble.PrecioPorDia.ToString("N2")</td>
+                    <td>
+                        <span class="badge @(inmueble.Disponible ? "bg-success" : "bg-secondary")">
+                            @(inmueble.Disponible ? "Disponible" : "Suspendido")
+                        </span>
+                    </td>
+                    <td class="text-nowrap">
+                        <a asp-action="Details" asp-route-id="@inmueble.Id" class="btn btn-sm btn-info">Detalle</a>
+                        <a asp-action="Edit" asp-route-id="@inmueble.Id" class="btn btn-sm btn-warning">Editar</a>
+                        @if (User.IsInRole("Administrador"))
+                        {
+                            <a asp-action="Delete" asp-route-id="@inmueble.Id" class="btn btn-sm btn-danger">Eliminar</a>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
