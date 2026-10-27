@@ -1,6 +1,5 @@
 using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using MySqlConnector;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
@@ -17,29 +16,22 @@ public class ReservasController : Controller
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
     }
 
-    private void CargarSelectLists()
+    private void CargarSelectLists(Reserva? reserva = null)
     {
-        var inquilinos = new List<SelectListItem>();
-        var inmuebles = new List<SelectListItem>();
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        ViewBag.InquilinoTexto = reserva is null ? null : BuscarEtiqueta(connection,
+            "SELECT CONCAT(Apellido, ', ', Nombre, ' · DNI ', Dni) FROM Inquilinos WHERE Id = @id", reserva.InquilinoId);
+        ViewBag.InmuebleTexto = reserva is null ? null : BuscarEtiqueta(connection,
+            "SELECT CONCAT(Nombre, ' · ', Direccion) FROM Inmuebles WHERE Id = @id", reserva.InmuebleId);
+    }
 
-        using (var connection = new MySqlConnection(_connectionString))
-        {
-            connection.Open();
-            using var cmd = new MySqlCommand("SELECT Id, CONCAT(Apellido, ' ', Nombre) AS Info FROM Inquilinos", connection);
-            using var r = cmd.ExecuteReader();
-            while (r.Read()) inquilinos.Add(new SelectListItem(r["Info"].ToString(), r["Id"].ToString()));
-        }
-
-        using (var connection = new MySqlConnection(_connectionString))
-        {
-            connection.Open();
-            using var cmd = new MySqlCommand("SELECT Id, CONCAT(Nombre, ' - ', Direccion) AS Info FROM Inmuebles WHERE Disponible = 1", connection);
-            using var r = cmd.ExecuteReader();
-            while (r.Read()) inmuebles.Add(new SelectListItem(r["Info"].ToString(), r["Id"].ToString()));
-        }
-
-        ViewBag.Inquilinos = inquilinos;
-        ViewBag.Inmuebles = inmuebles;
+    private static string? BuscarEtiqueta(MySqlConnection connection, string sql, int id)
+    {
+        if (id <= 0) return null;
+        using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@id", id);
+        return command.ExecuteScalar()?.ToString();
     }
 
     public IActionResult Index(string? buscar, string? estado, int pagina = 1)
@@ -61,6 +53,7 @@ public class ReservasController : Controller
             totalCmd.Parameters.AddWithValue("@buscar", buscar ?? "");
             totalCmd.Parameters.AddWithValue("@estado", estado ?? "");
             total = Convert.ToInt32(totalCmd.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / 10d)));
             string sql = @"SELECT r.Id, r.FechaInicio, r.FechaFin, r.MontoDiario,
                                   r.Estado, r.FechaCreacion, r.FechaFinOriginal,
                                   r.FechaTerminacion, r.CreadoPorUsuarioId,
@@ -70,7 +63,7 @@ public class ReservasController : Controller
                            INNER JOIN Inmuebles i ON i.Id = r.InmuebleId
                            INNER JOIN Inquilinos inq ON inq.Id = r.InquilinoId
                            " + filtro + @"
-                           ORDER BY r.FechaInicio DESC
+                           ORDER BY r.FechaInicio DESC, r.Id DESC
                            LIMIT @limite OFFSET @offset";
             using var cmd = new MySqlCommand(sql, connection);
             cmd.Parameters.AddWithValue("@buscar", buscar ?? "");
@@ -103,7 +96,8 @@ public class ReservasController : Controller
             Buscar = buscar,
             Estado = estado,
             Pagina = pagina,
-            TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / 10d))
+            TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / 10d)),
+            ValoresRuta = new Dictionary<string, string?> { ["buscar"] = buscar, ["estado"] = estado }
         });
     }
 
@@ -160,55 +154,102 @@ public class ReservasController : Controller
 
     public IActionResult Create()
     {
-        CargarSelectLists();
-        return View();
+        var reserva = new Reserva { FechaInicio = DateTime.Today, FechaFin = DateTime.Today.AddDays(1) };
+        CargarSelectLists(reserva);
+        return View(reserva);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Create(Reserva reserva)
     {
+        if (reserva.InquilinoId <= 0)
+            ModelState.AddModelError(nameof(reserva.InquilinoId), "Seleccione un inquilino.");
+        if (reserva.InmuebleId <= 0)
+            ModelState.AddModelError(nameof(reserva.InmuebleId), "Seleccione un inmueble.");
         if (reserva.FechaFin <= reserva.FechaInicio)
         {
             ModelState.AddModelError("FechaFin", "La fecha de fin debe ser posterior a la de inicio.");
         }
+        if (reserva.MontoDiario <= 0)
+        {
+            ModelState.AddModelError(nameof(reserva.MontoDiario), "El monto diario debe ser mayor que cero.");
+        }
 
         if (!ModelState.IsValid)
         {
-            CargarSelectLists();
+            CargarSelectLists(reserva);
             return View(reserva);
         }
 
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
-
-            string checkSql = @"SELECT COUNT(1) FROM Reservas
-                               WHERE InmuebleId = @inmuebleId
-                               AND Estado IN ('Activa', 'Pendiente')
-                               AND (@inicio <= FechaFin AND @fin >= FechaInicio)";
-            using var checkCmd = new MySqlCommand(checkSql, connection);
-            checkCmd.Parameters.AddWithValue("@inmuebleId", reserva.InmuebleId);
-            checkCmd.Parameters.AddWithValue("@inicio", reserva.FechaInicio);
-            checkCmd.Parameters.AddWithValue("@fin", reserva.FechaFin);
-
-            if (Convert.ToInt64(checkCmd.ExecuteScalar()) > 0)
+            using (var inquilinoCommand = new MySqlCommand("SELECT COUNT(*) FROM Inquilinos WHERE Id = @id", connection))
             {
-                ModelState.AddModelError("", "El inmueble ya cuenta con una reserva activa en esas fechas.");
-                CargarSelectLists();
-                return View(reserva);
+                inquilinoCommand.Parameters.AddWithValue("@id", reserva.InquilinoId);
+                if (Convert.ToInt32(inquilinoCommand.ExecuteScalar()) == 0)
+                {
+                    ModelState.AddModelError(nameof(reserva.InquilinoId), "El inquilino seleccionado no existe.");
+                    CargarSelectLists(reserva);
+                    return View(reserva);
+                }
             }
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using var inmuebleCommand = new MySqlCommand(
+                    "SELECT Disponible FROM Inmuebles WHERE Id = @inmuebleId FOR UPDATE", connection, transaction);
+                inmuebleCommand.Parameters.AddWithValue("@inmuebleId", reserva.InmuebleId);
+                var disponible = inmuebleCommand.ExecuteScalar();
+                if (disponible is null || disponible == DBNull.Value || !Convert.ToBoolean(disponible))
+                {
+                    transaction.Rollback();
+                    ModelState.AddModelError(nameof(reserva.InmuebleId), "El inmueble no existe o no está disponible para alquilar.");
+                }
+                else
+                {
+                    const string checkSql = @"SELECT COUNT(1) FROM Reservas
+                                              WHERE InmuebleId = @inmuebleId
+                                                AND Estado IN ('Activa', 'Pendiente')
+                                                AND (@inicio <= FechaFin AND @fin >= FechaInicio)";
+                    using var checkCmd = new MySqlCommand(checkSql, connection, transaction);
+                    checkCmd.Parameters.AddWithValue("@inmuebleId", reserva.InmuebleId);
+                    checkCmd.Parameters.AddWithValue("@inicio", reserva.FechaInicio.Date);
+                    checkCmd.Parameters.AddWithValue("@fin", reserva.FechaFin.Date);
 
-            string sql = @"INSERT INTO Reservas (FechaInicio, FechaFin, MontoDiario, InmuebleId, InquilinoId, Estado, CreadoPorUsuarioId)
-                           VALUES (@inicio, @fin, @monto, @inmuebleId, @inquilinoId, 'Activa', @usuarioId)";
-            using var cmd = new MySqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@inicio", reserva.FechaInicio);
-            cmd.Parameters.AddWithValue("@fin", reserva.FechaFin);
-            cmd.Parameters.AddWithValue("@monto", reserva.MontoDiario);
-            cmd.Parameters.AddWithValue("@inmuebleId", reserva.InmuebleId);
-            cmd.Parameters.AddWithValue("@inquilinoId", reserva.InquilinoId);
-            cmd.Parameters.AddWithValue("@usuarioId", UsuarioActualId());
-            cmd.ExecuteNonQuery();
+                    if (Convert.ToInt64(checkCmd.ExecuteScalar()) > 0)
+                    {
+                        transaction.Rollback();
+                        ModelState.AddModelError("", "El inmueble ya cuenta con una reserva activa en esas fechas.");
+                    }
+                    else
+                    {
+                        const string sql = @"INSERT INTO Reservas
+                                             (FechaInicio, FechaFin, MontoDiario, InmuebleId, InquilinoId, Estado, CreadoPorUsuarioId)
+                                             VALUES (@inicio, @fin, @monto, @inmuebleId, @inquilinoId, 'Activa', @usuarioId)";
+                        using var cmd = new MySqlCommand(sql, connection, transaction);
+                        cmd.Parameters.AddWithValue("@inicio", reserva.FechaInicio.Date);
+                        cmd.Parameters.AddWithValue("@fin", reserva.FechaFin.Date);
+                        cmd.Parameters.AddWithValue("@monto", reserva.MontoDiario);
+                        cmd.Parameters.AddWithValue("@inmuebleId", reserva.InmuebleId);
+                        cmd.Parameters.AddWithValue("@inquilinoId", reserva.InquilinoId);
+                        cmd.Parameters.AddWithValue("@usuarioId", UsuarioActualId());
+                        cmd.ExecuteNonQuery();
+                        transaction.Commit();
+                    }
+                }
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+        if (!ModelState.IsValid)
+        {
+            CargarSelectLists(reserva);
+            return View(reserva);
         }
 
         return RedirectToAction(nameof(Index));
@@ -216,37 +257,59 @@ public class ReservasController : Controller
 
     public IActionResult Disponibles(DisponibilidadViewModel modelo)
     {
+        const int porPagina = 10;
+        modelo.Pagina = Math.Max(1, modelo.Pagina);
         if (modelo.FechaFin <= modelo.FechaInicio)
         {
             ModelState.AddModelError(nameof(modelo.FechaFin), "La fecha de fin debe ser posterior a la de inicio.");
-            CargarTipos();
+            CargarTipoSeleccionado(modelo.TipoInmuebleId);
             return View(modelo);
         }
 
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
+        const string filtro = @"WHERE i.Disponible = 1
+                                  AND (@tipoId IS NULL OR i.TipoInmuebleId = @tipoId)
+                                  AND (@cupo IS NULL OR i.Cupo >= @cupo)
+                                  AND NOT EXISTS (
+                                      SELECT 1 FROM Reservas r
+                                      WHERE r.InmuebleId = i.Id
+                                        AND r.Estado IN ('Activa', 'Pendiente')
+                                        AND @inicio <= r.FechaFin AND @fin >= r.FechaInicio)";
+        const string from = @"FROM Inmuebles i
+                              INNER JOIN Propietarios p ON p.Id = i.PropietarioId
+                              INNER JOIN TiposInmueble t ON t.Id = i.TipoInmuebleId";
+        using (var totalCommand = new MySqlCommand($"SELECT COUNT(*) {from} {filtro}", connection))
+        {
+            totalCommand.Parameters.AddWithValue("@inicio", modelo.FechaInicio.Date);
+            totalCommand.Parameters.AddWithValue("@fin", modelo.FechaFin.Date);
+            totalCommand.Parameters.AddWithValue("@tipoId", (object?)modelo.TipoInmuebleId ?? DBNull.Value);
+            totalCommand.Parameters.AddWithValue("@cupo", (object?)modelo.CupoMinimo ?? DBNull.Value);
+            var total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            modelo.TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina));
+            modelo.Pagina = Math.Min(modelo.Pagina, modelo.TotalPaginas);
+        }
         const string sql = @"SELECT i.*, p.Nombre AS PropNombre, p.Apellido AS PropApellido,
                                     t.Descripcion AS TipoDesc
-                             FROM Inmuebles i
-                             INNER JOIN Propietarios p ON p.Id = i.PropietarioId
-                             INNER JOIN TiposInmueble t ON t.Id = i.TipoInmuebleId
-                             WHERE i.Disponible = 1
-                               AND (@tipoId IS NULL OR i.TipoInmuebleId = @tipoId)
-                               AND (@cupo IS NULL OR i.Cupo >= @cupo)
-                               AND NOT EXISTS (
-                                   SELECT 1 FROM Reservas r
-                                   WHERE r.InmuebleId = i.Id
-                                     AND r.Estado IN ('Activa', 'Pendiente')
-                                     AND @inicio <= r.FechaFin AND @fin >= r.FechaInicio)
-                             ORDER BY i.Nombre";
+                             " + from + " " + filtro + @"
+                             ORDER BY i.Nombre LIMIT @limite OFFSET @offset";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@inicio", modelo.FechaInicio.Date);
         command.Parameters.AddWithValue("@fin", modelo.FechaFin.Date);
         command.Parameters.AddWithValue("@tipoId", (object?)modelo.TipoInmuebleId ?? DBNull.Value);
         command.Parameters.AddWithValue("@cupo", (object?)modelo.CupoMinimo ?? DBNull.Value);
+        command.Parameters.AddWithValue("@limite", porPagina);
+        command.Parameters.AddWithValue("@offset", (modelo.Pagina - 1) * porPagina);
         using var reader = command.ExecuteReader();
         while (reader.Read()) modelo.Inmuebles.Add(MapearInmueble(reader));
-        CargarTipos();
+        CargarTipoSeleccionado(modelo.TipoInmuebleId);
+        modelo.ValoresRuta = new Dictionary<string, string?>
+        {
+            ["FechaInicio"] = modelo.FechaInicio.ToString("yyyy-MM-dd"),
+            ["FechaFin"] = modelo.FechaFin.ToString("yyyy-MM-dd"),
+            ["TipoInmuebleId"] = modelo.TipoInmuebleId?.ToString(),
+            ["CupoMinimo"] = modelo.CupoMinimo?.ToString()
+        };
         return View(modelo);
     }
 
@@ -371,12 +434,24 @@ public class ReservasController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    public IActionResult Informes(string tipo = "vigentes", int dias = 30, int? propietarioId = null)
+    public IActionResult Informes(string tipo = "vigentes", int dias = 30, int? propietarioId = null, int pagina = 1)
     {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         ViewBag.Tipo = tipo;
         ViewBag.Dias = Math.Max(1, dias);
         ViewBag.PropietarioId = propietarioId;
-        CargarPropietarios();
+        CargarPropietarioSeleccionado(propietarioId);
+        ViewBag.Paginacion = new PaginacionViewModel
+        {
+            Pagina = pagina,
+            ValoresRuta = new Dictionary<string, string?>
+            {
+                ["tipo"] = tipo,
+                ["dias"] = Math.Max(1, dias).ToString(),
+                ["propietarioId"] = propietarioId?.ToString()
+            }
+        };
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
 
@@ -386,20 +461,31 @@ public class ReservasController : Controller
             var filtro = tipo == "vigentes"
                 ? "CURDATE() BETWEEN r.FechaInicio AND r.FechaFin AND r.Estado IN ('Activa', 'Pendiente')"
                 : "r.FechaFin BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL @dias DAY) AND r.Estado IN ('Activa', 'Pendiente')";
+            using var totalCommand = new MySqlCommand($@"SELECT COUNT(*) FROM Reservas r
+                                                          INNER JOIN Inmuebles i ON i.Id = r.InmuebleId
+                                                          INNER JOIN Inquilinos inq ON inq.Id = r.InquilinoId
+                                                          WHERE {filtro}", connection);
+            totalCommand.Parameters.AddWithValue("@dias", Math.Max(1, dias));
+            var total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
             using var command = new MySqlCommand($@"SELECT r.Id, i.Nombre AS Inmueble,
                                                             CONCAT(inq.Apellido, ', ', inq.Nombre) AS Inquilino,
                                                             r.FechaInicio, r.FechaFin, r.Estado
                                                      FROM Reservas r
                                                      INNER JOIN Inmuebles i ON i.Id = r.InmuebleId
                                                      INNER JOIN Inquilinos inq ON inq.Id = r.InquilinoId
-                                                     WHERE {filtro} ORDER BY r.FechaFin", connection);
+                                                     WHERE {filtro} ORDER BY r.FechaFin, r.Id
+                                                     LIMIT @limite OFFSET @offset", connection);
             command.Parameters.AddWithValue("@dias", Math.Max(1, dias));
+            command.Parameters.AddWithValue("@limite", porPagina);
+            command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
             using var reader = command.ExecuteReader();
             while (reader.Read()) reservas.Add(new InformeReservaViewModel
             {
                 Id = reader.GetInt32("Id"), Inmueble = reader.GetString("Inmueble"), Inquilino = reader.GetString("Inquilino"),
                 FechaInicio = reader.GetDateTime("FechaInicio"), FechaFin = reader.GetDateTime("FechaFin"), Estado = reader.GetString("Estado")
             });
+            ((PaginacionViewModel)ViewBag.Paginacion).TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina));
             return View(reservas);
         }
 
@@ -408,9 +494,26 @@ public class ReservasController : Controller
             ? "r.FechaInicio >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)"
             : "r.FechaInicio >= DATE_SUB(CURDATE(), INTERVAL @dias DAY)";
         var cierre = tipo == "mas-reservados"
-            ? "ORDER BY CantidadReservas DESC"
-            : "HAVING COUNT(r.Id) = 0 ORDER BY i.Nombre";
+            ? "ORDER BY CantidadReservas DESC, i.Id"
+            : "HAVING COUNT(r.Id) = 0 ORDER BY i.Nombre, i.Id";
         var filtroPropietario = tipo == "por-propietario" ? "WHERE (@propietarioId IS NULL OR i.PropietarioId = @propietarioId)" : "";
+        var having = tipo == "sin-reservas" ? "HAVING COUNT(r.Id) = 0" : "";
+        using (var totalCommand = new MySqlCommand($@"SELECT COUNT(*) FROM (
+                                                            SELECT i.Id
+                                                            FROM Inmuebles i
+                                                            INNER JOIN Propietarios p ON p.Id = i.PropietarioId
+                                                            LEFT JOIN Reservas r ON r.InmuebleId = i.Id AND {condicion}
+                                                            {filtroPropietario}
+                                                            GROUP BY i.Id
+                                                            {having}
+                                                        ) AS informe", connection))
+        {
+            totalCommand.Parameters.AddWithValue("@dias", Math.Max(1, dias));
+            totalCommand.Parameters.AddWithValue("@propietarioId", (object?)propietarioId ?? DBNull.Value);
+            var total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
+            ((PaginacionViewModel)ViewBag.Paginacion).TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina));
+        }
         using var inmuebleCommand = new MySqlCommand($@"SELECT i.Id, i.Nombre,
                                                                CONCAT(p.Apellido, ', ', p.Nombre) AS Propietario,
                                                                COUNT(r.Id) AS CantidadReservas,
@@ -420,9 +523,12 @@ public class ReservasController : Controller
                                                         LEFT JOIN Reservas r ON r.InmuebleId = i.Id AND {condicion}
                                                         {filtroPropietario}
                                                         GROUP BY i.Id, i.Nombre, p.Apellido, p.Nombre
-                                                        {(tipo == "por-propietario" ? "ORDER BY i.Nombre" : cierre)}", connection);
+                                                        {(tipo == "por-propietario" ? "ORDER BY i.Nombre, i.Id" : cierre)}
+                                                        LIMIT @limite OFFSET @offset", connection);
         inmuebleCommand.Parameters.AddWithValue("@dias", Math.Max(1, dias));
         inmuebleCommand.Parameters.AddWithValue("@propietarioId", (object?)propietarioId ?? DBNull.Value);
+        inmuebleCommand.Parameters.AddWithValue("@limite", porPagina);
+        inmuebleCommand.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
         using var inmuebleReader = inmuebleCommand.ExecuteReader();
         while (inmuebleReader.Read()) inmuebles.Add(new InformeInmuebleViewModel
         {
@@ -501,26 +607,26 @@ public class ReservasController : Controller
         Tipo = new TipoInmueble { Descripcion = reader.GetString("TipoDesc") }
     };
 
-    private void CargarTipos()
+    private void CargarTipoSeleccionado(int? tipoId)
     {
-        var tipos = new List<SelectListItem>();
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
-        using var command = new MySqlCommand("SELECT Id, Descripcion FROM TiposInmueble ORDER BY Descripcion", connection);
-        using var reader = command.ExecuteReader();
-        while (reader.Read()) tipos.Add(new SelectListItem(reader.GetString("Descripcion"), reader.GetString("Id")));
-        ViewBag.Tipos = tipos;
+        ViewBag.TipoTexto = tipoId.HasValue
+            ? BuscarEtiqueta(connection, "SELECT Descripcion FROM TiposInmueble WHERE Id = @id", tipoId.Value)
+            : null;
     }
 
-    private void CargarPropietarios()
+    private void CargarPropietarioSeleccionado(int? propietarioId)
     {
-        var propietarios = new List<SelectListItem>();
+        if (!propietarioId.HasValue)
+        {
+            ViewBag.PropietarioTexto = null;
+            return;
+        }
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
-        using var command = new MySqlCommand("SELECT Id, CONCAT(Apellido, ' ', Nombre) AS NombreCompleto FROM Propietarios ORDER BY Apellido, Nombre", connection);
-        using var reader = command.ExecuteReader();
-        while (reader.Read()) propietarios.Add(new SelectListItem(reader.GetString("NombreCompleto"), reader.GetString("Id")));
-        ViewBag.Propietarios = propietarios;
+        ViewBag.PropietarioTexto = BuscarEtiqueta(connection,
+            "SELECT CONCAT(Apellido, ', ', Nombre, ' · DNI ', Dni) FROM Propietarios WHERE Id = @id", propietarioId.Value);
     }
 
     private int UsuarioActualId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

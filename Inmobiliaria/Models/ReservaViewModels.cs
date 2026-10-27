@@ -2,16 +2,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Inmobiliaria.Models;
 
-public class ReservaListadoViewModel
+public class ReservaListadoViewModel : PaginacionViewModel
 {
     public List<Reserva> Reservas { get; set; } = [];
     public string? Buscar { get; set; }
     public string? Estado { get; set; }
-    public int Pagina { get; set; }
-    public int TotalPaginas { get; set; }
 }
 
-public class DisponibilidadViewModel
+public class DisponibilidadViewModel : PaginacionViewModel
 {
     [Required, DataType(DataType.Date)]
     public DateTime FechaInicio { get; set; } = DateTime.Today;
