@@ -15,15 +15,37 @@ public class PropietariosController : Controller
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
     }
 
-    public IActionResult Index()
+    public IActionResult Index(string? buscar, int pagina = 1)
     {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         var propietarios = new List<Propietario>();
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
-        using var command = new MySqlCommand("SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Propietarios ORDER BY Apellido, Nombre", connection);
+        const string filtro = @"WHERE (@buscar = '' OR Nombre LIKE CONCAT('%', @buscar, '%')
+                                   OR Apellido LIKE CONCAT('%', @buscar, '%')
+                                   OR Dni LIKE CONCAT('%', @buscar, '%')
+                                   OR Email LIKE CONCAT('%', @buscar, '%'))";
+        using var totalCommand = new MySqlCommand($"SELECT COUNT(*) FROM Propietarios {filtro}", connection);
+        totalCommand.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+        var total = Convert.ToInt32(totalCommand.ExecuteScalar());
+        var totalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina));
+        pagina = Math.Min(pagina, totalPaginas);
+        using var command = new MySqlCommand(
+            $@"SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Propietarios {filtro}
+               ORDER BY Apellido, Nombre, Id LIMIT @limite OFFSET @offset", connection);
+        command.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+        command.Parameters.AddWithValue("@limite", porPagina);
+        command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
         using var reader = command.ExecuteReader();
         while (reader.Read()) propietarios.Add(Mapear(reader));
-        return View(propietarios);
+        return View(new PaginadoViewModel<Propietario>
+        {
+            Elementos = propietarios,
+            Pagina = pagina,
+            TotalPaginas = totalPaginas,
+            ValoresRuta = new Dictionary<string, string?> { ["buscar"] = buscar }
+        });
     }
 
     public IActionResult Create() => View();

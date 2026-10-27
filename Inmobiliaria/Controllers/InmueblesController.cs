@@ -1,6 +1,5 @@
 using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using MySqlConnector;
 using Microsoft.AspNetCore.Authorization;
 
@@ -16,55 +15,85 @@ public class InmueblesController : Controller
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
     }
 
-    private void CargarSelectLists()
+    private void CargarSelectLabels(Inmueble inmueble)
     {
-        var propietarios = new List<SelectListItem>();
-        var tipos = new List<SelectListItem>();
-
-        using (var connection = new MySqlConnection(_connectionString))
-        {
-            connection.Open();
-            using var cmdProp = new MySqlCommand("SELECT Id, CONCAT(Apellido, ' ', Nombre) AS NombreCompleto FROM Propietarios", connection);
-            using var rProp = cmdProp.ExecuteReader();
-            while (rProp.Read())
-            {
-                propietarios.Add(new SelectListItem(rProp["NombreCompleto"].ToString(), rProp["Id"].ToString()));
-            }
-        }
-
-        using (var connection = new MySqlConnection(_connectionString))
-        {
-            connection.Open();
-            using var cmdTipo = new MySqlCommand("SELECT Id, Descripcion FROM TiposInmueble", connection);
-            using var rTipo = cmdTipo.ExecuteReader();
-            while (rTipo.Read())
-            {
-                tipos.Add(new SelectListItem(rTipo["Descripcion"].ToString(), rTipo["Id"].ToString()));
-            }
-        }
-
-        ViewBag.Propietarios = propietarios;
-        ViewBag.TiposInmueble = tipos;
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        ViewBag.PropietarioTexto = BuscarEtiqueta(connection,
+            "SELECT CONCAT(Apellido, ', ', Nombre, ' · DNI ', Dni) FROM Propietarios WHERE Id = @id", inmueble.PropietarioId);
+        ViewBag.TipoTexto = BuscarEtiqueta(connection,
+            "SELECT Descripcion FROM TiposInmueble WHERE Id = @id", inmueble.TipoInmuebleId);
     }
 
-    public IActionResult Index()
+    private static string? BuscarEtiqueta(MySqlConnection connection, string sql, int id)
     {
+        if (id <= 0) return null;
+        using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@id", id);
+        return command.ExecuteScalar()?.ToString();
+    }
+
+    private bool ValidarReferencias(MySqlConnection connection, Inmueble inmueble)
+    {
+        using var propietarioCommand = new MySqlCommand(
+            "SELECT COUNT(*) FROM Propietarios WHERE Id = @id", connection);
+        propietarioCommand.Parameters.AddWithValue("@id", inmueble.PropietarioId);
+        if (inmueble.PropietarioId <= 0 || Convert.ToInt32(propietarioCommand.ExecuteScalar()) == 0)
+            ModelState.AddModelError(nameof(inmueble.PropietarioId), "Seleccione un propietario válido.");
+
+        using var tipoCommand = new MySqlCommand(
+            "SELECT COUNT(*) FROM TiposInmueble WHERE Id = @id", connection);
+        tipoCommand.Parameters.AddWithValue("@id", inmueble.TipoInmuebleId);
+        if (inmueble.TipoInmuebleId <= 0 || Convert.ToInt32(tipoCommand.ExecuteScalar()) == 0)
+            ModelState.AddModelError(nameof(inmueble.TipoInmuebleId), "Seleccione un tipo de inmueble válido.");
+
+        return ModelState.IsValid;
+    }
+
+    public IActionResult Index(string? buscar, string? estado, int pagina = 1)
+    {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         var inmuebles = new List<Inmueble>();
+        var total = 0;
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
-            string sql = @"SELECT i.*, p.Nombre AS PropNombre, p.Apellido AS PropApellido, t.Descripcion AS TipoDesc
-                           FROM Inmuebles i
-                           INNER JOIN Propietarios p ON i.PropietarioId = p.Id
-                           INNER JOIN TiposInmueble t ON i.TipoInmuebleId = t.Id";
+            const string filtro = @"WHERE (@buscar = '' OR i.Nombre LIKE CONCAT('%', @buscar, '%')
+                                            OR i.Direccion LIKE CONCAT('%', @buscar, '%')
+                                            OR p.Nombre LIKE CONCAT('%', @buscar, '%')
+                                            OR p.Apellido LIKE CONCAT('%', @buscar, '%'))
+                                     AND (@estado = '' OR (@estado = 'disponible' AND i.Disponible = 1)
+                                          OR (@estado = 'suspendido' AND i.Disponible = 0))";
+            var from = @"FROM Inmuebles i
+                         INNER JOIN Propietarios p ON i.PropietarioId = p.Id
+                         INNER JOIN TiposInmueble t ON i.TipoInmuebleId = t.Id";
+            using var totalCommand = new MySqlCommand($"SELECT COUNT(*) {from} {filtro}", connection);
+            totalCommand.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+            totalCommand.Parameters.AddWithValue("@estado", estado ?? "");
+            total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
+            string sql = $@"SELECT i.*, p.Nombre AS PropNombre, p.Apellido AS PropApellido, t.Descripcion AS TipoDesc
+                            {from} {filtro}
+                            ORDER BY i.Nombre, i.Id LIMIT @limite OFFSET @offset";
             using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+            command.Parameters.AddWithValue("@estado", estado ?? "");
+            command.Parameters.AddWithValue("@limite", porPagina);
+            command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
                 inmuebles.Add(MapearInmueble(reader));
             }
         }
-        return View(inmuebles);
+        return View(new PaginadoViewModel<Inmueble>
+        {
+            Elementos = inmuebles,
+            Pagina = pagina,
+            TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)),
+            ValoresRuta = new Dictionary<string, string?> { ["buscar"] = buscar, ["estado"] = estado }
+        });
     }
 
     public IActionResult Details(int id)
@@ -90,8 +119,9 @@ public class InmueblesController : Controller
 
     public IActionResult Create()
     {
-        CargarSelectLists();
-        return View(new Inmueble());
+        var inmueble = new Inmueble();
+        CargarSelectLabels(inmueble);
+        return View(inmueble);
     }
 
     [HttpPost]
@@ -100,13 +130,18 @@ public class InmueblesController : Controller
     {
         if (!ModelState.IsValid)
         {
-            CargarSelectLists();
+            CargarSelectLabels(inmueble);
             return View(inmueble);
         }
 
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
+            if (!ValidarReferencias(connection, inmueble))
+            {
+                CargarSelectLabels(inmueble);
+                return View(inmueble);
+            }
             string sql = @"INSERT INTO Inmuebles 
                 (Nombre, Descripcion, Direccion, Cupo, Latitud, Longitud, PrecioPorDia, PorcentajeReserva, ImagenPortada, ImagenesAdicionales, Disponible, PropietarioId, TipoInmuebleId)
                 VALUES (@nombre, @desc, @dir, @cupo, @lat, @lng, @precio, @porc, @imagenPortada, @imagenesAdicionales, @disp, @propId, @tipoId)";
@@ -133,7 +168,7 @@ public class InmueblesController : Controller
     {
         var inmueble = ObtenerPorId(id);
         if (inmueble == null) return NotFound();
-        CargarSelectLists();
+        CargarSelectLabels(inmueble);
         return View(inmueble);
     }
 
@@ -143,13 +178,18 @@ public class InmueblesController : Controller
     {
         if (id != inmueble.Id || !ModelState.IsValid)
         {
-            CargarSelectLists();
+            CargarSelectLabels(inmueble);
             return View(inmueble);
         }
 
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
+            if (!ValidarReferencias(connection, inmueble))
+            {
+                CargarSelectLabels(inmueble);
+                return View(inmueble);
+            }
             string sql = @"UPDATE Inmuebles SET 
                 Nombre = @nombre, Descripcion = @desc, Direccion = @dir, Cupo = @cupo, 
                 Latitud = @lat, Longitud = @lng, PrecioPorDia = @precio, PorcentajeReserva = @porc, 

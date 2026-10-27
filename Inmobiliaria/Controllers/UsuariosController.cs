@@ -61,15 +61,36 @@ public class UsuariosController : Controller
     }
 
     [Authorize(Roles = "Administrador")]
-    public IActionResult Index()
+    public IActionResult Index(string? buscar, int pagina = 1)
     {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         var usuarios = new List<Usuario>();
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
-        using var command = new MySqlCommand("SELECT Id, Email, Rol, Activo, FechaCreacion, UltimoAcceso FROM Usuarios ORDER BY Email", connection);
+        const string filtro = @"WHERE (@buscar = '' OR Email LIKE CONCAT('%', @buscar, '%')
+                                   OR Nombre LIKE CONCAT('%', @buscar, '%')
+                                   OR Apellido LIKE CONCAT('%', @buscar, '%'))";
+        using var totalCommand = new MySqlCommand($"SELECT COUNT(*) FROM Usuarios {filtro}", connection);
+        totalCommand.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+        var total = Convert.ToInt32(totalCommand.ExecuteScalar());
+        var totalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina));
+        pagina = Math.Min(pagina, totalPaginas);
+        using var command = new MySqlCommand(
+            $@"SELECT Id, Email, Rol, Activo, FechaCreacion, UltimoAcceso FROM Usuarios {filtro}
+               ORDER BY Email LIMIT @limite OFFSET @offset", connection);
+        command.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+        command.Parameters.AddWithValue("@limite", porPagina);
+        command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
         using var reader = command.ExecuteReader();
         while (reader.Read()) usuarios.Add(new Usuario { Id = reader.GetInt32("Id"), Email = reader.GetString("Email"), Rol = reader.GetString("Rol"), Activo = reader.GetBoolean("Activo"), FechaCreacion = reader.GetDateTime("FechaCreacion"), UltimoAcceso = reader.IsDBNull(reader.GetOrdinal("UltimoAcceso")) ? null : reader.GetDateTime("UltimoAcceso") });
-        return View(usuarios);
+        return View(new PaginadoViewModel<Usuario>
+        {
+            Elementos = usuarios,
+            Pagina = pagina,
+            TotalPaginas = totalPaginas,
+            ValoresRuta = new Dictionary<string, string?> { ["buscar"] = buscar }
+        });
     }
 
     [Authorize(Roles = "Administrador")]
@@ -99,6 +120,87 @@ public class UsuariosController : Controller
         }
 
         return RedirectToAction(nameof(Index));
+    }
+
+    [Authorize(Roles = "Administrador")]
+    public IActionResult Editar(int id)
+    {
+        var usuario = ObtenerUsuarioParaEdicion(id);
+        return usuario == null ? NotFound() : View(usuario);
+    }
+
+    [HttpPost, Authorize(Roles = "Administrador"), ValidateAntiForgeryToken]
+    public IActionResult Editar(int id, EditarUsuarioViewModel model)
+    {
+        if (id != model.Id) return BadRequest();
+        if (model.NuevaPassword is { Length: > 0 } && model.NuevaPassword.Length < 8)
+            ModelState.AddModelError(nameof(model.NuevaPassword), "La contraseña debe tener al menos 8 caracteres.");
+
+        var usuarioActualId = UsuarioActualId();
+        if (usuarioActualId == id && (!model.Activo || model.Rol != "Administrador"))
+            ModelState.AddModelError(string.Empty, "No puede desactivar ni quitar el rol de administrador de su propio usuario.");
+
+        if (!ModelState.IsValid) return View(model);
+
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        using var currentCommand = new MySqlCommand("SELECT Rol, Activo FROM Usuarios WHERE Id = @id", connection);
+        currentCommand.Parameters.AddWithValue("@id", id);
+        using var currentReader = currentCommand.ExecuteReader();
+        if (!currentReader.Read()) return NotFound();
+        var eraAdministradorActivo = currentReader.GetString("Rol") == "Administrador" && currentReader.GetBoolean("Activo");
+        currentReader.Close();
+
+        if (eraAdministradorActivo && (model.Rol != "Administrador" || !model.Activo))
+        {
+            using var countCommand = new MySqlCommand(
+                "SELECT COUNT(*) FROM Usuarios WHERE Rol = 'Administrador' AND Activo = 1", connection);
+            if (Convert.ToInt32(countCommand.ExecuteScalar()) <= 1)
+            {
+                ModelState.AddModelError(string.Empty, "Debe quedar al menos un administrador activo.");
+                return View(model);
+            }
+        }
+
+        var sql = model.NuevaPassword is { Length: > 0 }
+            ? "UPDATE Usuarios SET Email = @email, Rol = @rol, Activo = @activo, PasswordHash = @passwordHash WHERE Id = @id"
+            : "UPDATE Usuarios SET Email = @email, Rol = @rol, Activo = @activo WHERE Id = @id";
+        using var command = new MySqlCommand(sql, connection);
+        command.Parameters.AddWithValue("@email", model.Email);
+        command.Parameters.AddWithValue("@rol", model.Rol);
+        command.Parameters.AddWithValue("@activo", model.Activo);
+        command.Parameters.AddWithValue("@id", id);
+        if (model.NuevaPassword is { Length: > 0 })
+            command.Parameters.AddWithValue("@passwordHash", _hasher.HashPassword(new Usuario(), model.NuevaPassword));
+
+        try
+        {
+            if (command.ExecuteNonQuery() != 1) return NotFound();
+        }
+        catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.DuplicateKeyEntry)
+        {
+            ModelState.AddModelError(nameof(model.Email), "Ya existe un usuario con ese email.");
+            return View(model);
+        }
+        return RedirectToAction(nameof(Index));
+    }
+
+    private EditarUsuarioViewModel? ObtenerUsuarioParaEdicion(int id)
+    {
+        using var connection = new MySqlConnection(_connectionString);
+        connection.Open();
+        using var command = new MySqlCommand("SELECT Id, Email, Rol, Activo FROM Usuarios WHERE Id = @id", connection);
+        command.Parameters.AddWithValue("@id", id);
+        using var reader = command.ExecuteReader();
+        return reader.Read()
+            ? new EditarUsuarioViewModel
+            {
+                Id = reader.GetInt32("Id"),
+                Email = reader.GetString("Email"),
+                Rol = reader.GetString("Rol"),
+                Activo = reader.GetBoolean("Activo")
+            }
+            : null;
     }
 
     [Authorize]
@@ -255,7 +357,7 @@ public class UsuariosController : Controller
     }
 
     [AllowAnonymous]
-    public IActionResult AccesoDenegado() => Forbid();
+    public IActionResult AccesoDenegado() => View();
 }
 
 public class LoginViewModel

@@ -14,14 +14,27 @@ public class TiposInmuebleController : Controller
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
     }
 
-    public IActionResult Index()
+    public IActionResult Index(string? buscar, int pagina = 1)
     {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         var tipos = new List<TipoInmueble>();
+        var total = 0;
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
-            string sql = "SELECT Id, Descripcion FROM TiposInmueble ORDER BY Descripcion";
+            using var totalCommand = new MySqlCommand(
+                "SELECT COUNT(*) FROM TiposInmueble WHERE (@buscar = '' OR Descripcion LIKE CONCAT('%', @buscar, '%'))", connection);
+            totalCommand.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+            total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
+            string sql = @"SELECT Id, Descripcion FROM TiposInmueble
+                           WHERE (@buscar = '' OR Descripcion LIKE CONCAT('%', @buscar, '%'))
+                           ORDER BY Descripcion, Id LIMIT @limite OFFSET @offset";
             using var command = new MySqlCommand(sql, connection);
+            command.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+            command.Parameters.AddWithValue("@limite", porPagina);
+            command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
             using var reader = command.ExecuteReader();
             while (reader.Read())
             {
@@ -32,7 +45,13 @@ public class TiposInmuebleController : Controller
                 });
             }
         }
-        return View(tipos);
+        return View(new PaginadoViewModel<TipoInmueble>
+        {
+            Elementos = tipos,
+            Pagina = pagina,
+            TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)),
+            ValoresRuta = new Dictionary<string, string?> { ["buscar"] = buscar }
+        });
     }
 
     public IActionResult Details(int id)

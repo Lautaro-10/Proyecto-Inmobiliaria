@@ -15,16 +15,32 @@ public class InquilinosController : Controller
         }
 
 
-public IActionResult Index()
+public IActionResult Index(string? buscar, int pagina = 1)
     {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         var inquilinos = new List<Inquilino>();
+        var total = 0;
 
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
-            string sql = "SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Inquilinos ORDER BY Apellido, Nombre";
+            const string filtro = @"WHERE (@buscar = '' OR Nombre LIKE CONCAT('%', @buscar, '%')
+                                         OR Apellido LIKE CONCAT('%', @buscar, '%')
+                                         OR Dni LIKE CONCAT('%', @buscar, '%')
+                                         OR Email LIKE CONCAT('%', @buscar, '%'))";
+            using var totalCommand = new MySqlCommand($"SELECT COUNT(*) FROM Inquilinos {filtro}", connection);
+            totalCommand.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+            total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
+            string sql = $@"SELECT Id, Nombre, Apellido, Dni, Telefono, Email FROM Inquilinos {filtro}
+                            ORDER BY Apellido, Nombre, Id LIMIT @limite OFFSET @offset";
 
             using (var command = new MySqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@buscar", buscar?.Trim() ?? "");
+                command.Parameters.AddWithValue("@limite", porPagina);
+                command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
             using (var reader = command.ExecuteReader())
             {
                 while (reader.Read())
@@ -40,9 +56,16 @@ public IActionResult Index()
                     });
                 }
             }
+            }
         }
 
-        return View(inquilinos);
+        return View(new PaginadoViewModel<Inquilino>
+        {
+            Elementos = inquilinos,
+            Pagina = pagina,
+            TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)),
+            ValoresRuta = new Dictionary<string, string?> { ["buscar"] = buscar }
+        });
     }
 
     public IActionResult Create()
@@ -247,4 +270,3 @@ public IActionResult Index()
         return RedirectToAction(nameof(Index));
     }
 } 
-

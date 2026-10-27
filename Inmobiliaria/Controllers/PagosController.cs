@@ -16,14 +16,23 @@ public class PagosController : Controller
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
     }
 
-    public IActionResult Index(int reservaId)
+    public IActionResult Index(int reservaId, int pagina = 1)
     {
+        const int porPagina = 10;
+        pagina = Math.Max(1, pagina);
         var reserva = ObtenerReserva(reservaId);
         if (reserva == null) return NotFound();
 
         var pagos = new List<Pago>();
+        var total = 0;
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
+        using (var totalCommand = new MySqlCommand("SELECT COUNT(*) FROM Pagos WHERE ReservaId = @reservaId", connection))
+        {
+            totalCommand.Parameters.AddWithValue("@reservaId", reservaId);
+            total = Convert.ToInt32(totalCommand.ExecuteScalar());
+            pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
+        }
         const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
                                      FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
                                      FechaModificacion, uc.Email AS CreadorEmail, um.Email AS ModificadorEmail
@@ -31,14 +40,22 @@ public class PagosController : Controller
                                  LEFT JOIN Usuarios uc ON uc.Id = p.CreadoPorUsuarioId
                                  LEFT JOIN Usuarios um ON um.Id = p.ModificadoPorUsuarioId
                              WHERE p.ReservaId = @reservaId
-                             ORDER BY FechaPago DESC, Id DESC";
+                             ORDER BY FechaPago DESC, Id DESC LIMIT @limite OFFSET @offset";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@reservaId", reservaId);
+        command.Parameters.AddWithValue("@limite", porPagina);
+        command.Parameters.AddWithValue("@offset", (pagina - 1) * porPagina);
         using var reader = command.ExecuteReader();
         while (reader.Read()) pagos.Add(MapearPago(reader));
 
         ViewBag.Reserva = reserva;
-        return View(pagos);
+        return View(new PaginadoViewModel<Pago>
+        {
+            Elementos = pagos,
+            Pagina = pagina,
+            TotalPaginas = Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)),
+            ValoresRuta = new Dictionary<string, string?> { ["reservaId"] = reservaId.ToString() }
+        });
     }
 
     public IActionResult Create(int reservaId)
