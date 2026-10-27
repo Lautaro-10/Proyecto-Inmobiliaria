@@ -1,4 +1,4 @@
-@model List<Inmobiliaria.Models.Inquilino>
+@model Inmobiliaria.Models.PaginadoViewModel<Inmobiliaria.Models.Inquilino>
 
 @{
     ViewData["Title"] = "Inquilinos";
@@ -9,7 +9,12 @@
     <a asp-action="Create" class="btn btn-primary" style="background-color: green; color: white; border: 2px white solid;">Nuevo inquilino</a>
 </div>
 
-@if (Model.Count == 0)
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-9"><input name="buscar" value="@Model.ValoresRuta.GetValueOrDefault("buscar")" class="form-control" placeholder="Buscar por nombre, DNI o email" /></div>
+    <div class="col-md-3"><button type="submit" class="btn btn-secondary w-100">Buscar</button></div>
+</form>
+
+@if (Model.Elementos.Count == 0)
 {
     <div class="alert alert-info">No hay inquilinos cargados.</div>
 }
@@ -28,7 +33,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var inquilino in Model)
+            @foreach (var inquilino in Model.Elementos)
             {
                 <tr>
                     <td>@inquilino.Id</td>
@@ -43,6 +48,7 @@ else
                     </td>
                 </tr>
             }
+            <partial name="_Paginacion" model="Model" />
         </tbody>
     </table>
 }

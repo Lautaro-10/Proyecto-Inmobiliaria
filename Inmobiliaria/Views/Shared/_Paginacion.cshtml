@@ -1,0 +1,49 @@
+@model Inmobiliaria.Models.PaginacionViewModel
+
+@if (Model.TotalPaginas > 1)
+{
+    var desde = Math.Max(1, Model.Pagina - 2);
+    var hasta = Math.Min(Model.TotalPaginas, Model.Pagina + 2);
+    <nav aria-label="Paginación">
+        <ul class="pagination">
+            @{
+                var anterior = new Dictionary<string, string?>(Model.ValoresRuta) { ["pagina"] = (Model.Pagina - 1).ToString() };
+                var siguiente = new Dictionary<string, string?>(Model.ValoresRuta) { ["pagina"] = (Model.Pagina + 1).ToString() };
+            }
+            <li class="page-item @(Model.Pagina <= 1 ? "disabled" : "")">
+                <a class="page-link" asp-all-route-data="anterior" aria-label="Página anterior">Anterior</a>
+            </li>
+            @if (desde > 1)
+            {
+                var primera = new Dictionary<string, string?>(Model.ValoresRuta) { ["pagina"] = "1" };
+                <li class="page-item"><a class="page-link" asp-all-route-data="primera">1</a></li>
+                @if (desde > 2)
+                {
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                }
+            }
+            @for (var pagina = desde; pagina <= hasta; pagina++)
+            {
+                var valoresRuta = new Dictionary<string, string?>(Model.ValoresRuta)
+                {
+                    ["pagina"] = pagina.ToString()
+                };
+                <li class="page-item @(pagina == Model.Pagina ? "active" : "")">
+                    <a class="page-link" asp-all-route-data="valoresRuta">@pagina</a>
+                </li>
+            }
+            @if (hasta < Model.TotalPaginas)
+            {
+                @if (hasta < Model.TotalPaginas - 1)
+                {
+                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                }
+                var ultima = new Dictionary<string, string?>(Model.ValoresRuta) { ["pagina"] = Model.TotalPaginas.ToString() };
+                <li class="page-item"><a class="page-link" asp-all-route-data="ultima">@Model.TotalPaginas</a></li>
+            }
+            <li class="page-item @(Model.Pagina >= Model.TotalPaginas ? "disabled" : "")">
+                <a class="page-link" asp-all-route-data="siguiente" aria-label="Página siguiente">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+}

@@ -18,17 +18,11 @@
         <span asp-validation-for="Descripcion" class="text-danger"></span>
     </div>
     <div class="col-md-6 mb-3">
-        <label asp-for="PropietarioId" class="form-label">Propietario</label>
-        <select asp-for="PropietarioId" asp-items="ViewBag.Propietarios" class="form-select">
-            <option value="">Seleccione un propietario</option>
-        </select>
+        <partial name="_BusquedaRemota" model='new Inmobiliaria.Models.BusquedaRemotaViewModel { Nombre = "PropietarioId", Etiqueta = "Propietario", Url = Url.Action("Buscar", "Catalogos", new { entidad = "propietarios" })!, IdSeleccionado = Model.PropietarioId > 0 ? Model.PropietarioId : null, TextoSeleccionado = ViewBag.PropietarioTexto }' />
         <span asp-validation-for="PropietarioId" class="text-danger"></span>
     </div>
     <div class="col-md-6 mb-3">
-        <label asp-for="TipoInmuebleId" class="form-label">Tipo de inmueble</label>
-        <select asp-for="TipoInmuebleId" asp-items="ViewBag.TiposInmueble" class="form-select">
-            <option value="">Seleccione un tipo</option>
-        </select>
+        <partial name="_BusquedaRemota" model='new Inmobiliaria.Models.BusquedaRemotaViewModel { Nombre = "TipoInmuebleId", Etiqueta = "Tipo de inmueble", Url = Url.Action("Buscar", "Catalogos", new { entidad = "tipos" })!, IdSeleccionado = Model.TipoInmuebleId > 0 ? Model.TipoInmuebleId : null, TextoSeleccionado = ViewBag.TipoTexto }' />
         <span asp-validation-for="TipoInmuebleId" class="text-danger"></span>
     </div>
     <div class="col-md-4 mb-3">

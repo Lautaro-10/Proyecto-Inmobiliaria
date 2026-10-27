@@ -8,7 +8,9 @@
 <h2>Informes</h2>
 <form method="get" class="row g-2 mb-4">
     <div class="col-md-4"><select name="tipo" class="form-select"><option value="vigentes" selected="@(tipo == "vigentes")">Reservas vigentes</option><option value="proximas" selected="@(tipo == "proximas")">Reservas próximas a finalizar</option><option value="mas-reservados" selected="@(tipo == "mas-reservados")">Más reservados últimos 365 días</option><option value="sin-reservas" selected="@(tipo == "sin-reservas")">Sin reservas recientes</option><option value="por-propietario" selected="@(tipo == "por-propietario")">Inmuebles por propietario</option></select></div>
-    <div class="col-md-3"><select name="propietarioId" asp-items="ViewBag.Propietarios" class="form-select"><option value="">Todos los propietarios</option></select></div>
+    <div class="col-md-3">
+        <partial name="_BusquedaRemota" model='new Inmobiliaria.Models.BusquedaRemotaViewModel { Nombre = "propietarioId", Etiqueta = "Propietario", Url = Url.Action("Buscar", "Catalogos", new { entidad = "propietarios" })!, IdSeleccionado = (int?)ViewBag.PropietarioId, TextoSeleccionado = ViewBag.PropietarioTexto, Placeholder = "Todos los propietarios" }' />
+    </div>
     <div class="col-md-3"><input type="number" name="dias" value="@dias" min="1" class="form-control" title="Días" /></div>
     <div class="col-md-2"><button type="submit" class="btn btn-primary">Consultar</button></div>
 </form>
@@ -27,4 +29,5 @@ else
     @foreach (var inmueble in inmuebles) { <tr><td>@inmueble.Nombre</td><td>@inmueble.Propietario</td><td>@inmueble.CantidadReservas</td><td>@inmueble.UltimaReserva?.ToString("dd/MM/yyyy")</td></tr> }
     </tbody></table>
 }
+<partial name="_Paginacion" model="(Inmobiliaria.Models.PaginacionViewModel)ViewBag.Paginacion" />
 <a asp-action="Index" class="btn btn-secondary">Volver a reservas</a>

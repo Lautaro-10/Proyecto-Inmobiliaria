@@ -1,0 +1,9 @@
+@model Inmobiliaria.Models.BusquedaRemotaViewModel
+
+<div class="remote-lookup position-relative" data-remote-lookup data-url="@Model.Url">
+    <label for="@($"{Model.Nombre}-search")" class="form-label">@Model.Etiqueta</label>
+    <input type="hidden" name="@Model.Nombre" id="@Model.Nombre" value="@Model.IdSeleccionado" data-remote-lookup-value />
+    <input type="search" id="@($"{Model.Nombre}-search")" class="form-control" value="@Model.TextoSeleccionado" placeholder="@Model.Placeholder" autocomplete="off" data-remote-lookup-search />
+    <div class="list-group position-absolute w-100 shadow-sm" style="z-index: 20; display: none;" data-remote-lookup-results></div>
+    <div class="form-text" data-remote-lookup-status aria-live="polite"></div>
+</div>

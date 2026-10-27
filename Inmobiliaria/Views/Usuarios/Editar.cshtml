@@ -1,0 +1,39 @@
+@model Inmobiliaria.Models.EditarUsuarioViewModel
+
+@{
+    ViewData["Title"] = "Editar usuario";
+}
+
+<h2>Editar usuario</h2>
+<form asp-action="Editar" asp-route-id="@Model.Id" method="post">
+    <input asp-for="Id" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Rol" class="form-label"></label>
+        <select asp-for="Rol" class="form-select">
+            <option value="Empleado">Empleado</option>
+            <option value="Administrador">Administrador</option>
+        </select>
+        <span asp-validation-for="Rol" class="text-danger"></span>
+    </div>
+    <div class="form-check mb-3">
+        <input asp-for="Activo" class="form-check-input" />
+        <label asp-for="Activo" class="form-check-label">Usuario activo</label>
+    </div>
+    <div class="mb-3">
+        <label asp-for="NuevaPassword" class="form-label">Nueva contraseña (opcional)</label>
+        <input asp-for="NuevaPassword" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="NuevaPassword" class="text-danger"></span>
+        <div class="form-text">Dejar vacío para conservar la contraseña actual.</div>
+    </div>
+    <button type="submit" class="btn btn-success">Guardar cambios</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancelar</a>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

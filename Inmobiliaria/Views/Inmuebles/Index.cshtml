@@ -1,4 +1,4 @@
-@model IEnumerable<Inmobiliaria.Models.Inmueble>
+@model Inmobiliaria.Models.PaginadoViewModel<Inmobiliaria.Models.Inmueble>
 
 @{
     ViewData["Title"] = "Inmuebles";
@@ -9,7 +9,19 @@
     <a asp-action="Create" class="btn btn-primary">Nuevo inmueble</a>
 </div>
 
-@if (!Model.Any())
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-6"><input name="buscar" value="@Model.ValoresRuta.GetValueOrDefault("buscar")" class="form-control" placeholder="Buscar inmueble o propietario" /></div>
+    <div class="col-md-3">
+        <select name="estado" class="form-select">
+            <option value="">Todos los estados</option>
+            <option value="disponible" selected="@(Model.ValoresRuta.GetValueOrDefault("estado") == "disponible")">Disponible</option>
+            <option value="suspendido" selected="@(Model.ValoresRuta.GetValueOrDefault("estado") == "suspendido")">Suspendido</option>
+        </select>
+    </div>
+    <div class="col-md-3"><button type="submit" class="btn btn-secondary w-100">Filtrar</button></div>
+</form>
+
+@if (Model.Elementos.Count == 0)
 {
     <div class="alert alert-info">No hay inmuebles registrados.</div>
 }
@@ -30,7 +42,7 @@ else
                 </tr>
             </thead>
             <tbody>
-            @foreach (var inmueble in Model)
+            @foreach (var inmueble in Model.Elementos)
             {
                 <tr>
                     <td>
@@ -38,6 +50,7 @@ else
                         {
                             <img src="@inmueble.ImagenPortada" alt="Portada de @inmueble.Nombre" style="width: 96px; height: 64px; object-fit: cover;" />
                         }
+                        <partial name="_Paginacion" model="Model" />
                     </td>
                     <td>@inmueble.Nombre</td>
                     <td>@inmueble.Tipo?.Descripcion</td>

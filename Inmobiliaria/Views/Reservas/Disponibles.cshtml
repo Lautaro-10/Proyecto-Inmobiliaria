@@ -6,7 +6,9 @@
 <form method="get" class="row g-3 mb-4">
     <div class="col-md-3"><label asp-for="FechaInicio" class="form-label"></label><input asp-for="FechaInicio" class="form-control" type="date" /></div>
     <div class="col-md-3"><label asp-for="FechaFin" class="form-label"></label><input asp-for="FechaFin" class="form-control" type="date" /></div>
-    <div class="col-md-3"><label asp-for="TipoInmuebleId" class="form-label">Tipo</label><select asp-for="TipoInmuebleId" asp-items="ViewBag.Tipos" class="form-select"><option value="">Todos</option></select></div>
+    <div class="col-md-3">
+        <partial name="_BusquedaRemota" model='new Inmobiliaria.Models.BusquedaRemotaViewModel { Nombre = "TipoInmuebleId", Etiqueta = "Tipo", Url = Url.Action("Buscar", "Catalogos", new { entidad = "tipos" })!, IdSeleccionado = Model.TipoInmuebleId, TextoSeleccionado = ViewBag.TipoTexto, Placeholder = "Deje vacío para todos" }' />
+    </div>
     <div class="col-md-2"><label asp-for="CupoMinimo" class="form-label">Cupo mínimo</label><input asp-for="CupoMinimo" class="form-control" min="1" /></div>
     <div class="col-md-1 align-self-end"><button class="btn btn-primary" type="submit">Buscar</button></div>
 </form>
@@ -19,4 +21,5 @@ else
 @foreach (var inmueble in Model.Inmuebles) { <tr><td>@inmueble.Nombre</td><td>@inmueble.Tipo?.Descripcion</td><td>@inmueble.Duenio?.Apellido, @inmueble.Duenio?.Nombre</td><td>@inmueble.Cupo</td><td>$@inmueble.PrecioPorDia.ToString("N2")</td></tr> }
 </tbody></table>
 }
+<partial name="_Paginacion" model="Model" />
 <a asp-action="Index" class="btn btn-secondary">Volver</a>

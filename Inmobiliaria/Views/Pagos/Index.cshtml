@@ -1,4 +1,4 @@
-@model List<Inmobiliaria.Models.Pago>
+@model Inmobiliaria.Models.PaginadoViewModel<Inmobiliaria.Models.Pago>
 @{
     var reserva = (Inmobiliaria.Models.Reserva)ViewBag.Reserva;
     ViewData["Title"] = "Pagos de la reserva";
@@ -12,7 +12,7 @@
     <a asp-action="Create" asp-route-reservaId="@reserva.Id" class="btn btn-primary">Nuevo pago</a>
 </div>
 
-@if (Model.Count == 0)
+@if (Model.Elementos.Count == 0)
 {
     <div class="alert alert-info">No hay pagos registrados para esta reserva.</div>
 }
@@ -33,7 +33,7 @@ else
             </tr>
         </thead>
         <tbody>
-        @foreach (var pago in Model)
+        @foreach (var pago in Model.Elementos)
         {
             <tr>
                 <td>@pago.FechaPago?.ToString("dd/MM/yyyy")</td>
@@ -62,4 +62,5 @@ else
     </table>
 }
 
+<partial name="_Paginacion" model="Model" />
 <a asp-controller="Reservas" asp-action="Details" asp-route-id="@reserva.Id" class="btn btn-secondary">Volver a la reserva</a>

@@ -53,14 +53,7 @@ else
         }
         </tbody>
     </table>
-    <nav>
-        <ul class="pagination">
-        @for (var i = 1; i <= Model.TotalPaginas; i++)
-        {
-            <li class="page-item @(i == Model.Pagina ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-pagina="@i" asp-route-buscar="@Model.Buscar" asp-route-estado="@Model.Estado">@i</a></li>
-        }
-        </ul>
-    </nav>
 }
 
+<partial name="_Paginacion" model="Model" />
 <a asp-action="Informes" class="btn btn-outline-dark">Informes</a>

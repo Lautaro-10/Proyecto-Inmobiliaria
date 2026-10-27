@@ -1,0 +1,47 @@
+@model Inmobiliaria.Models.PaginadoViewModel<Inmobiliaria.Models.Usuario>
+
+@{
+    ViewData["Title"] = "Gestión de usuarios";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Gestión de usuarios</h2>
+    <a asp-action="Crear" class="btn btn-primary">Nuevo usuario</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-9">
+        <input name="buscar" value="@Model.ValoresRuta.GetValueOrDefault("buscar")" class="form-control" placeholder="Buscar por email o nombre" />
+    </div>
+    <div class="col-md-3"><button type="submit" class="btn btn-secondary w-100">Buscar</button></div>
+</form>
+
+@if (Model.Elementos.Count == 0)
+{
+    <div class="alert alert-info">No se encontraron usuarios.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr><th>Email</th><th>Rol</th><th>Estado</th><th>Creación</th><th>Último acceso</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+            @foreach (var usuario in Model.Elementos)
+            {
+                <tr>
+                    <td>@usuario.Email</td>
+                    <td>@usuario.Rol</td>
+                    <td><span class="badge @(usuario.Activo ? "bg-success" : "bg-secondary")">@(usuario.Activo ? "Activo" : "Inactivo")</span></td>
+                    <td>@usuario.FechaCreacion.ToString("dd/MM/yyyy")</td>
+                    <td>@usuario.UltimoAcceso?.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><a asp-action="Editar" asp-route-id="@usuario.Id" class="btn btn-sm btn-warning">Editar</a></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+<partial name="_Paginacion" model="Model" />
