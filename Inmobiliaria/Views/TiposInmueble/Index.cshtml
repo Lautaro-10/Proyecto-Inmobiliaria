@@ -35,10 +35,10 @@ else
                     {
                         <a asp-action="Delete" asp-route-id="@tipo.Id" class="btn btn-sm btn-danger">Eliminar</a>
                     }
-                    <partial name="_Paginacion" model="Model" />
                 </td>
             </tr>
         }
         </tbody>
     </table>
+    <partial name="_Paginacion" model="Model" />
 }

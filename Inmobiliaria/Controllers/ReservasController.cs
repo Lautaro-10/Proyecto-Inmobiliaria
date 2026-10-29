@@ -491,8 +491,8 @@ public class ReservasController : Controller
 
         var inmuebles = new List<InformeInmuebleViewModel>();
         var condicion = tipo == "mas-reservados"
-            ? "r.FechaInicio >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)"
-            : "r.FechaInicio >= DATE_SUB(CURDATE(), INTERVAL @dias DAY)";
+            ? "r.FechaInicio BETWEEN DATE_SUB(CURDATE(), INTERVAL 365 DAY) AND CURDATE()"
+            : "r.FechaInicio BETWEEN DATE_SUB(CURDATE(), INTERVAL @dias DAY) AND CURDATE()";
         var cierre = tipo == "mas-reservados"
             ? "ORDER BY CantidadReservas DESC, i.Id"
             : "HAVING COUNT(r.Id) = 0 ORDER BY i.Nombre, i.Id";
@@ -572,10 +572,13 @@ public class ReservasController : Controller
         connection.Open();
         const string sql = @"SELECT r.*, i.Nombre AS InmuebleNombre, i.Direccion,
                                     inq.Nombre AS InqNombre, inq.Apellido AS InqApellido,
-                                    inq.Dni, inq.Telefono, inq.Email
+                                    inq.Dni, inq.Telefono, inq.Email,
+                                    uc.Email AS CreadorEmail, ut.Email AS TerminadorEmail
                              FROM Reservas r
                              INNER JOIN Inmuebles i ON i.Id = r.InmuebleId
                              INNER JOIN Inquilinos inq ON inq.Id = r.InquilinoId
+                             LEFT JOIN Usuarios uc ON uc.Id = r.CreadoPorUsuarioId
+                             LEFT JOIN Usuarios ut ON ut.Id = r.TerminadoPorUsuarioId
                              WHERE r.Id = @id";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@id", id);

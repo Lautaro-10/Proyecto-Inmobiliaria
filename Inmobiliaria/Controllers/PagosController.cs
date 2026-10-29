@@ -33,9 +33,9 @@ public class PagosController : Controller
             total = Convert.ToInt32(totalCommand.ExecuteScalar());
             pagina = Math.Min(pagina, Math.Max(1, (int)Math.Ceiling(total / (double)porPagina)));
         }
-        const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
-                                     FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
-                                     FechaModificacion, AnuladoPorUsuarioId, FechaAnulacion,
+        const string sql = @"SELECT p.Id, p.ReservaId, p.Monto, p.Concepto, p.Estado, p.FechaPago,
+                                     p.FechaCreacion, p.CreadoPorUsuarioId, p.ModificadoPorUsuarioId,
+                                     p.FechaModificacion, p.AnuladoPorUsuarioId, p.FechaAnulacion,
                                      uc.Email AS CreadorEmail, um.Email AS ModificadorEmail,
                                      ua.Email AS AnuladorEmail
                                  FROM Pagos p
@@ -43,7 +43,7 @@ public class PagosController : Controller
                                  LEFT JOIN Usuarios um ON um.Id = p.ModificadoPorUsuarioId
                                  LEFT JOIN Usuarios ua ON ua.Id = p.AnuladoPorUsuarioId
                              WHERE p.ReservaId = @reservaId
-                             ORDER BY FechaPago DESC, Id DESC LIMIT @limite OFFSET @offset";
+                             ORDER BY p.FechaPago DESC, p.Id DESC LIMIT @limite OFFSET @offset";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@reservaId", reservaId);
         command.Parameters.AddWithValue("@limite", porPagina);
@@ -192,9 +192,9 @@ public class PagosController : Controller
     {
         using var connection = new MySqlConnection(_connectionString);
         connection.Open();
-        const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
-                                     FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
-                                     FechaModificacion, AnuladoPorUsuarioId, FechaAnulacion,
+        const string sql = @"SELECT p.Id, p.ReservaId, p.Monto, p.Concepto, p.Estado, p.FechaPago,
+                                     p.FechaCreacion, p.CreadoPorUsuarioId, p.ModificadoPorUsuarioId,
+                                     p.FechaModificacion, p.AnuladoPorUsuarioId, p.FechaAnulacion,
                                      uc.Email AS CreadorEmail, um.Email AS ModificadorEmail,
                                      ua.Email AS AnuladorEmail
                                  FROM Pagos p
