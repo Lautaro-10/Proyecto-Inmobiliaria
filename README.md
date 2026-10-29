@@ -11,6 +11,12 @@ El script de inicialización no elimina bases existentes y puede volver a ejecut
 4. Seleccionar el archivo `script.sql` ubicado en la raíz de este repositorio y presionar el botón "Importar" en la parte inferior.
 5. Esto creará automáticamente la base de datos `InmobiliariaDB`, las tablas correspondientes y los datos de prueba que aún no existan.
 
+### Usuario de prueba
+* Email: `admin@demo.local`
+* Contraseña: `Demo1234!`
+
+Al volver a importar `script.sql`, la contraseña de esta cuenta se restablece a la indicada arriba.
+
 Las imágenes de inmuebles se cargan desde el formulario y se guardan en `Inmobiliaria/wwwroot/uploads/inmuebles`. La portada es obligatoria al crear; al editar se puede conservar la actual o reemplazarla. Se admiten archivos PNG, JPEG y WebP de hasta 5 MB cada uno y hasta 10 imágenes adicionales por carga.
 
 ## Diagrama Entidad-Relación (DER)

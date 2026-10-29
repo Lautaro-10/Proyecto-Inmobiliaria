@@ -106,8 +106,11 @@ CREATE TABLE IF NOT EXISTS Pagos (
 );
 
 INSERT INTO Usuarios (Email, PasswordHash, Rol)
-SELECT 'admin@demo.local', 'AQAAAAIAAYagAAAAEAsxUvQjK5JgASTZ+JhBueGcFmPkY8qz1X3NxAzsUuSBNMSfM2SUj14Au2F6TmTAlQ==', 'Administrador'
-WHERE NOT EXISTS (SELECT 1 FROM Usuarios WHERE Email = 'admin@demo.local');
+VALUES ('admin@demo.local', 'AQAAAAIAAYagAAAAEAQDT8PkKRgpxLQ/w3seISLkp/5W8keQDLhR+GPiM5NzBk4l9Ew7jrcbK6G+5MiftQ==', 'Administrador')
+ON DUPLICATE KEY UPDATE
+    PasswordHash = VALUES(PasswordHash),
+    Rol = 'Administrador',
+    Activo = 1;
 
 
 INSERT INTO Propietarios (Nombre, Apellido, Dni, Email, Telefono)
