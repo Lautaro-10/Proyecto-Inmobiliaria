@@ -6,7 +6,7 @@
 
 <h2>Nuevo inmueble</h2>
 
-<form asp-action="Create" method="post">
+<form asp-action="Create" method="post" enctype="multipart/form-data">
     <partial name="_Form" model="Model" />
     <button type="submit" class="btn btn-success">Guardar</button>
     <a asp-action="Index" class="btn btn-secondary">Cancelar</a>

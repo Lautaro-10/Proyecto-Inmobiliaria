@@ -51,15 +51,29 @@
         <span asp-validation-for="Longitud" class="text-danger"></span>
     </div>
     <div class="col-md-6 mb-3">
-        <label asp-for="ImagenPortada" class="form-label">URL o ruta de imagen de portada</label>
-        <input asp-for="ImagenPortada" class="form-control" />
-        <span asp-validation-for="ImagenPortada" class="text-danger"></span>
+        <label asp-for="ImagenPortadaArchivo" class="form-label">Imagen de portada</label>
+        <input asp-for="ImagenPortadaArchivo" type="file" accept=".png,.jpg,.jpeg,.webp" class="form-control" required="@(Model.Id == 0)" />
+        <span asp-validation-for="ImagenPortadaArchivo" class="text-danger"></span>
+        <div class="form-text">PNG, JPEG o WebP; máximo 5 MB. En edición, dejar vacío para conservar la portada actual.</div>
+        @if (Model.Id > 0 && !string.IsNullOrWhiteSpace(Model.ImagenPortada))
+        {
+            <img src="@Model.ImagenPortada" alt="Portada actual de @Model.Nombre" class="img-thumbnail mt-2" style="max-width: 240px; max-height: 160px; object-fit: cover;" />
+        }
     </div>
     <div class="col-md-6 mb-3">
-        <label asp-for="ImagenesAdicionales" class="form-label">URL o rutas de imágenes adicionales</label>
-        <textarea asp-for="ImagenesAdicionales" class="form-control" rows="2"></textarea>
-        <span asp-validation-for="ImagenesAdicionales" class="text-danger"></span>
-        <div class="form-text">Separe las rutas con comas.</div>
+        <label asp-for="ImagenesAdicionalesArchivos" class="form-label">Imágenes adicionales</label>
+        <input name="ImagenesAdicionalesArchivos" type="file" accept=".png,.jpg,.jpeg,.webp" multiple class="form-control" />
+        <span asp-validation-for="ImagenesAdicionalesArchivos" class="text-danger"></span>
+        <div class="form-text">Puede seleccionar hasta 10 imágenes por vez; PNG, JPEG o WebP de hasta 5 MB cada una. En edición, las nuevas se agregan a la galería.</div>
+        @if (!string.IsNullOrWhiteSpace(Model.ImagenesAdicionales))
+        {
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                @foreach (var imagen in Model.ImagenesAdicionales.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    <img src="@imagen" alt="Imagen adicional actual de @Model.Nombre" class="img-thumbnail" style="width: 120px; height: 90px; object-fit: cover;" />
+                }
+            </div>
+        }
     </div>
     <div class="col-12 mb-3 form-check ms-2">
         <input asp-for="Disponible" class="form-check-input" />

@@ -15,6 +15,9 @@ public class Pago
     public int? CreadoPorUsuarioId { get; set; }
     public int? ModificadoPorUsuarioId { get; set; }
     public DateTime? FechaModificacion { get; set; }
+    public int? AnuladoPorUsuarioId { get; set; }
+    public DateTime? FechaAnulacion { get; set; }
     public Usuario? CreadoPorUsuario { get; set; }
     public Usuario? ModificadoPorUsuario { get; set; }
+    public Usuario? AnuladoPorUsuario { get; set; }
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace Inmobiliaria.Models;
 
@@ -43,11 +44,14 @@ public class Inmueble
     [Required, Range(0, 100)]
     public decimal PorcentajeReserva { get; set; } = 10.0m;
 
-    [Required(ErrorMessage = "La imagen de portada es requerida."), StringLength(255)]
+    [StringLength(255)]
     public string? ImagenPortada { get; set; }
 
-    [StringLength(255)]
+    public IFormFile? ImagenPortadaArchivo { get; set; }
+
     public string? ImagenesAdicionales { get; set; }
+
+    public List<IFormFile> ImagenesAdicionalesArchivos { get; set; } = [];
 
     public bool Disponible { get; set; } = true;
 }

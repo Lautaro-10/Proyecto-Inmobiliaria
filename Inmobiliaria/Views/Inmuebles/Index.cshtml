@@ -50,7 +50,6 @@ else
                         {
                             <img src="@inmueble.ImagenPortada" alt="Portada de @inmueble.Nombre" style="width: 96px; height: 64px; object-fit: cover;" />
                         }
-                        <partial name="_Paginacion" model="Model" />
                     </td>
                     <td>@inmueble.Nombre</td>
                     <td>@inmueble.Tipo?.Descripcion</td>
@@ -69,6 +68,7 @@ else
                         {
                             <a asp-action="Delete" asp-route-id="@inmueble.Id" class="btn btn-sm btn-danger">Eliminar</a>
                         }
+                        <partial name="_Paginacion" model="Model" />
                     </td>
                 </tr>
             }

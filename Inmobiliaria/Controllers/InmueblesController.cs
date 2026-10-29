@@ -2,17 +2,27 @@ using Inmobiliaria.Models;
 using Microsoft.AspNetCore.Mvc;
 using MySqlConnector;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Cryptography;
 
 namespace Inmobiliaria.Controllers;
 
 [Authorize]
 public class InmueblesController : Controller
 {
+    private const long TamanoMaximoImagen = 5 * 1024 * 1024;
+    private const int MaximoImagenesAdicionalesPorCarga = 10;
     private readonly string _connectionString;
+    private readonly IWebHostEnvironment _environment;
+    private readonly ILogger<InmueblesController> _logger;
 
-    public InmueblesController(IConfiguration configuration)
+    public InmueblesController(
+        IConfiguration configuration,
+        IWebHostEnvironment environment,
+        ILogger<InmueblesController> logger)
     {
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "";
+        _environment = environment;
+        _logger = logger;
     }
 
     private void CargarSelectLabels(Inmueble inmueble)
@@ -126,8 +136,14 @@ public class InmueblesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Create(Inmueble inmueble)
+    [RequestSizeLimit(60 * 1024 * 1024)]
+    public async Task<IActionResult> Create(Inmueble inmueble)
     {
+        if (!await ValidarImagenesAsync(inmueble, portadaRequerida: true))
+        {
+            CargarSelectLabels(inmueble);
+            return View(inmueble);
+        }
         if (!ModelState.IsValid)
         {
             CargarSelectLabels(inmueble);
@@ -142,24 +158,38 @@ public class InmueblesController : Controller
                 CargarSelectLabels(inmueble);
                 return View(inmueble);
             }
-            string sql = @"INSERT INTO Inmuebles 
-                (Nombre, Descripcion, Direccion, Cupo, Latitud, Longitud, PrecioPorDia, PorcentajeReserva, ImagenPortada, ImagenesAdicionales, Disponible, PropietarioId, TipoInmuebleId)
-                VALUES (@nombre, @desc, @dir, @cupo, @lat, @lng, @precio, @porc, @imagenPortada, @imagenesAdicionales, @disp, @propId, @tipoId)";
-            using var cmd = new MySqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@nombre", inmueble.Nombre);
-            cmd.Parameters.AddWithValue("@desc", inmueble.Descripcion);
-            cmd.Parameters.AddWithValue("@dir", inmueble.Direccion);
-            cmd.Parameters.AddWithValue("@cupo", inmueble.Cupo);
-            cmd.Parameters.AddWithValue("@lat", (object?)inmueble.Latitud ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@lng", (object?)inmueble.Longitud ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@precio", inmueble.PrecioPorDia);
-            cmd.Parameters.AddWithValue("@porc", inmueble.PorcentajeReserva);
-            cmd.Parameters.AddWithValue("@imagenPortada", inmueble.ImagenPortada);
-            cmd.Parameters.AddWithValue("@imagenesAdicionales", (object?)inmueble.ImagenesAdicionales ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@disp", inmueble.Disponible ? 1 : 0);
-            cmd.Parameters.AddWithValue("@propId", inmueble.PropietarioId);
-            cmd.Parameters.AddWithValue("@tipoId", inmueble.TipoInmuebleId);
-            cmd.ExecuteNonQuery();
+            var imagenesGuardadas = await GuardarImagenesAsync(
+                new[] { inmueble.ImagenPortadaArchivo! }.Concat(inmueble.ImagenesAdicionalesArchivos));
+            inmueble.ImagenPortada = imagenesGuardadas[0];
+            inmueble.ImagenesAdicionales = imagenesGuardadas.Count > 1
+                ? string.Join(',', imagenesGuardadas.Skip(1))
+                : null;
+            try
+            {
+                string sql = @"INSERT INTO Inmuebles
+                    (Nombre, Descripcion, Direccion, Cupo, Latitud, Longitud, PrecioPorDia, PorcentajeReserva, ImagenPortada, ImagenesAdicionales, Disponible, PropietarioId, TipoInmuebleId)
+                    VALUES (@nombre, @desc, @dir, @cupo, @lat, @lng, @precio, @porc, @imagenPortada, @imagenesAdicionales, @disp, @propId, @tipoId)";
+                using var cmd = new MySqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@nombre", inmueble.Nombre);
+                cmd.Parameters.AddWithValue("@desc", inmueble.Descripcion);
+                cmd.Parameters.AddWithValue("@dir", inmueble.Direccion);
+                cmd.Parameters.AddWithValue("@cupo", inmueble.Cupo);
+                cmd.Parameters.AddWithValue("@lat", (object?)inmueble.Latitud ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@lng", (object?)inmueble.Longitud ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@precio", inmueble.PrecioPorDia);
+                cmd.Parameters.AddWithValue("@porc", inmueble.PorcentajeReserva);
+                cmd.Parameters.AddWithValue("@imagenPortada", inmueble.ImagenPortada);
+                cmd.Parameters.AddWithValue("@imagenesAdicionales", (object?)inmueble.ImagenesAdicionales ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@disp", inmueble.Disponible ? 1 : 0);
+                cmd.Parameters.AddWithValue("@propId", inmueble.PropietarioId);
+                cmd.Parameters.AddWithValue("@tipoId", inmueble.TipoInmuebleId);
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                EliminarImagenesSubidas(imagenesGuardadas);
+                throw;
+            }
         }
         return RedirectToAction(nameof(Index));
     }
@@ -174,9 +204,16 @@ public class InmueblesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Edit(int id, Inmueble inmueble)
+    [RequestSizeLimit(60 * 1024 * 1024)]
+    public async Task<IActionResult> Edit(int id, Inmueble inmueble)
     {
-        if (id != inmueble.Id || !ModelState.IsValid)
+        if (id != inmueble.Id) return BadRequest();
+        var inmuebleActual = ObtenerPorId(id);
+        if (inmuebleActual == null) return NotFound();
+
+        inmueble.ImagenPortada = inmuebleActual.ImagenPortada;
+        inmueble.ImagenesAdicionales = inmuebleActual.ImagenesAdicionales;
+        if (!await ValidarImagenesAsync(inmueble, portadaRequerida: false) || !ModelState.IsValid)
         {
             CargarSelectLabels(inmueble);
             return View(inmueble);
@@ -190,28 +227,56 @@ public class InmueblesController : Controller
                 CargarSelectLabels(inmueble);
                 return View(inmueble);
             }
-            string sql = @"UPDATE Inmuebles SET 
-                Nombre = @nombre, Descripcion = @desc, Direccion = @dir, Cupo = @cupo, 
-                Latitud = @lat, Longitud = @lng, PrecioPorDia = @precio, PorcentajeReserva = @porc, 
-                ImagenPortada = @imagenPortada, ImagenesAdicionales = @imagenesAdicionales,
-                Disponible = @disp, PropietarioId = @propId, TipoInmuebleId = @tipoId
-                WHERE Id = @id";
-            using var cmd = new MySqlCommand(sql, connection);
-            cmd.Parameters.AddWithValue("@id", id);
-            cmd.Parameters.AddWithValue("@nombre", inmueble.Nombre);
-            cmd.Parameters.AddWithValue("@desc", inmueble.Descripcion);
-            cmd.Parameters.AddWithValue("@dir", inmueble.Direccion);
-            cmd.Parameters.AddWithValue("@cupo", inmueble.Cupo);
-            cmd.Parameters.AddWithValue("@lat", (object?)inmueble.Latitud ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@lng", (object?)inmueble.Longitud ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@precio", inmueble.PrecioPorDia);
-            cmd.Parameters.AddWithValue("@porc", inmueble.PorcentajeReserva);
-            cmd.Parameters.AddWithValue("@imagenPortada", inmueble.ImagenPortada);
-            cmd.Parameters.AddWithValue("@imagenesAdicionales", (object?)inmueble.ImagenesAdicionales ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@disp", inmueble.Disponible ? 1 : 0);
-            cmd.Parameters.AddWithValue("@propId", inmueble.PropietarioId);
-            cmd.Parameters.AddWithValue("@tipoId", inmueble.TipoInmuebleId);
-            cmd.ExecuteNonQuery();
+            var imagenesGuardadas = await GuardarImagenesAsync(
+                (inmueble.ImagenPortadaArchivo is null
+                    ? Enumerable.Empty<IFormFile>()
+                    : [inmueble.ImagenPortadaArchivo])
+                .Concat(inmueble.ImagenesAdicionalesArchivos));
+            var portadaAnterior = inmuebleActual.ImagenPortada;
+            var imagenesAdicionales = SepararImagenes(inmuebleActual.ImagenesAdicionales)
+                .Concat(imagenesGuardadas.Where((_, index) => inmueble.ImagenPortadaArchivo is null || index > 0))
+                .ToList();
+            if (inmueble.ImagenPortadaArchivo is not null)
+                inmueble.ImagenPortada = imagenesGuardadas[0];
+            inmueble.ImagenesAdicionales = imagenesAdicionales.Count == 0
+                ? null
+                : string.Join(',', imagenesAdicionales);
+            try
+            {
+                string sql = @"UPDATE Inmuebles SET
+                    Nombre = @nombre, Descripcion = @desc, Direccion = @dir, Cupo = @cupo,
+                    Latitud = @lat, Longitud = @lng, PrecioPorDia = @precio, PorcentajeReserva = @porc,
+                    ImagenPortada = @imagenPortada, ImagenesAdicionales = @imagenesAdicionales,
+                    Disponible = @disp, PropietarioId = @propId, TipoInmuebleId = @tipoId
+                    WHERE Id = @id";
+                using var cmd = new MySqlCommand(sql, connection);
+                cmd.Parameters.AddWithValue("@id", id);
+                cmd.Parameters.AddWithValue("@nombre", inmueble.Nombre);
+                cmd.Parameters.AddWithValue("@desc", inmueble.Descripcion);
+                cmd.Parameters.AddWithValue("@dir", inmueble.Direccion);
+                cmd.Parameters.AddWithValue("@cupo", inmueble.Cupo);
+                cmd.Parameters.AddWithValue("@lat", (object?)inmueble.Latitud ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@lng", (object?)inmueble.Longitud ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@precio", inmueble.PrecioPorDia);
+                cmd.Parameters.AddWithValue("@porc", inmueble.PorcentajeReserva);
+                cmd.Parameters.AddWithValue("@imagenPortada", inmueble.ImagenPortada);
+                cmd.Parameters.AddWithValue("@imagenesAdicionales", (object?)inmueble.ImagenesAdicionales ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@disp", inmueble.Disponible ? 1 : 0);
+                cmd.Parameters.AddWithValue("@propId", inmueble.PropietarioId);
+                cmd.Parameters.AddWithValue("@tipoId", inmueble.TipoInmuebleId);
+                if (cmd.ExecuteNonQuery() != 1)
+                {
+                    EliminarImagenesSubidas(imagenesGuardadas);
+                    return NotFound();
+                }
+            }
+            catch
+            {
+                EliminarImagenesSubidas(imagenesGuardadas);
+                throw;
+            }
+            if (inmueble.ImagenPortadaArchivo is not null)
+                EliminarImagenSubida(portadaAnterior);
         }
         return RedirectToAction(nameof(Index));
     }
@@ -229,6 +294,8 @@ public class InmueblesController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult DeleteConfirmed(int id)
     {
+        var inmueble = ObtenerPorId(id);
+        if (inmueble == null) return NotFound();
         using (var connection = new MySqlConnection(_connectionString))
         {
             connection.Open();
@@ -241,13 +308,114 @@ public class InmueblesController : Controller
             }
             catch (MySqlException ex) when (ex.Number == 1451)
             {
-                var inmueble = ObtenerPorId(id);
-                if (inmueble == null) return NotFound();
+                var inmuebleConReservas = ObtenerPorId(id);
+                if (inmuebleConReservas == null) return NotFound();
                 ModelState.AddModelError(string.Empty, "No se puede eliminar este inmueble porque tiene reservas asociadas.");
-                return View("Delete", inmueble);
+                return View("Delete", inmuebleConReservas);
             }
         }
+        EliminarImagenSubida(inmueble.ImagenPortada);
+        EliminarImagenesSubidas(SepararImagenes(inmueble.ImagenesAdicionales));
         return RedirectToAction(nameof(Index));
+    }
+
+    private async Task<bool> ValidarImagenesAsync(Inmueble inmueble, bool portadaRequerida)
+    {
+        var imagenesAdicionales = inmueble.ImagenesAdicionalesArchivos
+            .Where(imagen => imagen.Length > 0)
+            .ToList();
+        if (portadaRequerida && (inmueble.ImagenPortadaArchivo is null || inmueble.ImagenPortadaArchivo.Length == 0))
+            ModelState.AddModelError(nameof(inmueble.ImagenPortadaArchivo), "La imagen de portada es obligatoria.");
+        if (imagenesAdicionales.Count > MaximoImagenesAdicionalesPorCarga)
+            ModelState.AddModelError(nameof(inmueble.ImagenesAdicionalesArchivos), $"Puede cargar hasta {MaximoImagenesAdicionalesPorCarga} imágenes adicionales por vez.");
+
+        if (inmueble.ImagenPortadaArchivo is { Length: > 0 }
+            && !await EsImagenPermitidaAsync(inmueble.ImagenPortadaArchivo))
+            ModelState.AddModelError(nameof(inmueble.ImagenPortadaArchivo), "La portada debe ser PNG, JPEG o WebP y no superar los 5 MB.");
+
+        for (var index = 0; index < imagenesAdicionales.Count; index++)
+        {
+            if (!await EsImagenPermitidaAsync(imagenesAdicionales[index]))
+                ModelState.AddModelError(nameof(inmueble.ImagenesAdicionalesArchivos), $"La imagen adicional {index + 1} debe ser PNG, JPEG o WebP y no superar los 5 MB.");
+        }
+        return ModelState.IsValid;
+    }
+
+    private async Task<List<string>> GuardarImagenesAsync(IEnumerable<IFormFile> archivos)
+    {
+        var guardadas = new List<string>();
+        try
+        {
+            var directorio = DirectorioImagenes();
+            Directory.CreateDirectory(directorio);
+            foreach (var archivo in archivos.Where(archivo => archivo.Length > 0))
+            {
+                var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+                var nombreArchivo = $"{Convert.ToHexString(RandomNumberGenerator.GetBytes(16))}{extension}";
+                var ruta = Path.Combine(directorio, nombreArchivo);
+                await using (var stream = new FileStream(ruta, FileMode.CreateNew, FileAccess.Write))
+                    await archivo.CopyToAsync(stream);
+                guardadas.Add($"/uploads/inmuebles/{nombreArchivo}");
+            }
+            return guardadas;
+        }
+        catch
+        {
+            EliminarImagenesSubidas(guardadas);
+            throw;
+        }
+    }
+
+    private static async Task<bool> EsImagenPermitidaAsync(IFormFile archivo)
+    {
+        if (archivo.Length <= 0 || archivo.Length > TamanoMaximoImagen) return false;
+        var extension = Path.GetExtension(archivo.FileName).ToLowerInvariant();
+        var encabezado = new byte[12];
+        await using var stream = archivo.OpenReadStream();
+        var bytesLeidos = await stream.ReadAsync(encabezado.AsMemory());
+        return extension switch
+        {
+            ".png" => bytesLeidos >= 8 && encabezado.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }),
+            ".jpg" or ".jpeg" => bytesLeidos >= 3 && encabezado[0] == 255 && encabezado[1] == 216 && encabezado[2] == 255,
+            ".webp" => bytesLeidos >= 12 && encabezado.AsSpan(0, 4).SequenceEqual("RIFF"u8)
+                       && encabezado.AsSpan(8, 4).SequenceEqual("WEBP"u8),
+            _ => false
+        };
+    }
+
+    private IEnumerable<string> SepararImagenes(string? imagenes) =>
+        string.IsNullOrWhiteSpace(imagenes)
+            ? []
+            : imagenes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private string DirectorioImagenes() =>
+        Path.Combine(_environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot"), "uploads", "inmuebles");
+
+    private void EliminarImagenesSubidas(IEnumerable<string> imagenes)
+    {
+        foreach (var imagen in imagenes) EliminarImagenSubida(imagen);
+    }
+
+    private void EliminarImagenSubida(string? imagen)
+    {
+        const string prefijo = "/uploads/inmuebles/";
+        if (string.IsNullOrWhiteSpace(imagen) || !imagen.StartsWith(prefijo, StringComparison.Ordinal)) return;
+        var ruta = Path.GetFullPath(Path.Combine(DirectorioImagenes(), imagen[prefijo.Length..]));
+        var directorio = Path.GetFullPath(DirectorioImagenes()) + Path.DirectorySeparatorChar;
+        if (!ruta.StartsWith(directorio, StringComparison.OrdinalIgnoreCase)) return;
+
+        try
+        {
+            if (System.IO.File.Exists(ruta)) System.IO.File.Delete(ruta);
+        }
+        catch (IOException ex)
+        {
+            _logger.LogWarning(ex, "No se pudo eliminar el archivo de imagen {Imagen}", imagen);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "No se pudo eliminar el archivo de imagen {Imagen}", imagen);
+        }
     }
 
     private Inmueble? ObtenerPorId(int id)

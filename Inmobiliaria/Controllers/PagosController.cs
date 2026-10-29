@@ -35,10 +35,13 @@ public class PagosController : Controller
         }
         const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
                                      FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
-                                     FechaModificacion, uc.Email AS CreadorEmail, um.Email AS ModificadorEmail
+                                     FechaModificacion, AnuladoPorUsuarioId, FechaAnulacion,
+                                     uc.Email AS CreadorEmail, um.Email AS ModificadorEmail,
+                                     ua.Email AS AnuladorEmail
                                  FROM Pagos p
                                  LEFT JOIN Usuarios uc ON uc.Id = p.CreadoPorUsuarioId
                                  LEFT JOIN Usuarios um ON um.Id = p.ModificadoPorUsuarioId
+                                 LEFT JOIN Usuarios ua ON ua.Id = p.AnuladoPorUsuarioId
                              WHERE p.ReservaId = @reservaId
                              ORDER BY FechaPago DESC, Id DESC LIMIT @limite OFFSET @offset";
         using var command = new MySqlCommand(sql, connection);
@@ -174,8 +177,8 @@ public class PagosController : Controller
         connection.Open();
         const string sql = @"UPDATE Pagos
                              SET Estado = 'Anulado',
-                                 ModificadoPorUsuarioId = @usuarioId,
-                                 FechaModificacion = UTC_TIMESTAMP()
+                                 AnuladoPorUsuarioId = @usuarioId,
+                                 FechaAnulacion = UTC_TIMESTAMP()
                              WHERE Id = @id AND Estado <> 'Anulado'";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@usuarioId", UsuarioActualId());
@@ -191,10 +194,13 @@ public class PagosController : Controller
         connection.Open();
         const string sql = @"SELECT Id, ReservaId, Monto, Concepto, Estado, FechaPago,
                                      FechaCreacion, CreadoPorUsuarioId, ModificadoPorUsuarioId,
-                                     FechaModificacion, uc.Email AS CreadorEmail, um.Email AS ModificadorEmail
+                                     FechaModificacion, AnuladoPorUsuarioId, FechaAnulacion,
+                                     uc.Email AS CreadorEmail, um.Email AS ModificadorEmail,
+                                     ua.Email AS AnuladorEmail
                                  FROM Pagos p
                                  LEFT JOIN Usuarios uc ON uc.Id = p.CreadoPorUsuarioId
                                  LEFT JOIN Usuarios um ON um.Id = p.ModificadoPorUsuarioId
+                                 LEFT JOIN Usuarios ua ON ua.Id = p.AnuladoPorUsuarioId
                                  WHERE p.Id = @id";
         using var command = new MySqlCommand(sql, connection);
         command.Parameters.AddWithValue("@id", id);
@@ -241,8 +247,11 @@ public class PagosController : Controller
         CreadoPorUsuarioId = reader.IsDBNull(reader.GetOrdinal("CreadoPorUsuarioId")) ? null : reader.GetInt32("CreadoPorUsuarioId"),
         ModificadoPorUsuarioId = reader.IsDBNull(reader.GetOrdinal("ModificadoPorUsuarioId")) ? null : reader.GetInt32("ModificadoPorUsuarioId"),
         FechaModificacion = reader.IsDBNull(reader.GetOrdinal("FechaModificacion")) ? null : reader.GetDateTime("FechaModificacion"),
+        AnuladoPorUsuarioId = reader.IsDBNull(reader.GetOrdinal("AnuladoPorUsuarioId")) ? null : reader.GetInt32("AnuladoPorUsuarioId"),
+        FechaAnulacion = reader.IsDBNull(reader.GetOrdinal("FechaAnulacion")) ? null : reader.GetDateTime("FechaAnulacion"),
         CreadoPorUsuario = reader.IsDBNull(reader.GetOrdinal("CreadorEmail")) ? null : new Usuario { Email = reader.GetString("CreadorEmail") },
-        ModificadoPorUsuario = reader.IsDBNull(reader.GetOrdinal("ModificadorEmail")) ? null : new Usuario { Email = reader.GetString("ModificadorEmail") }
+        ModificadoPorUsuario = reader.IsDBNull(reader.GetOrdinal("ModificadorEmail")) ? null : new Usuario { Email = reader.GetString("ModificadorEmail") },
+        AnuladoPorUsuario = reader.IsDBNull(reader.GetOrdinal("AnuladorEmail")) ? null : new Usuario { Email = reader.GetString("AnuladorEmail") }
     };
 
     private int UsuarioActualId() => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

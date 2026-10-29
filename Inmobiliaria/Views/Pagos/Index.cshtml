@@ -44,7 +44,17 @@ else
                 </td>
                 @if (User.IsInRole("Administrador"))
                 {
-                    <td>Creado: @(pago.CreadoPorUsuario?.Email ?? "No disponible")<br />Modificado: @(pago.ModificadoPorUsuario?.Email ?? "-")</td>
+                    <td>
+                        Creado: @(pago.CreadoPorUsuario?.Email ?? "No disponible")
+                        @if (pago.ModificadoPorUsuario is not null)
+                        {
+                            <br />@:Editado: @pago.ModificadoPorUsuario.Email (@pago.FechaModificacion?.ToString("dd/MM/yyyy HH:mm"))
+                        }
+                        @if (pago.AnuladoPorUsuario is not null)
+                        {
+                            <br />@:<strong>Anulado por:</strong> @pago.AnuladoPorUsuario.Email (@pago.FechaAnulacion?.ToString("dd/MM/yyyy HH:mm"))
+                        }
+                    </td>
                 }
                 <td>
                     @if (pago.Estado != "Anulado")
