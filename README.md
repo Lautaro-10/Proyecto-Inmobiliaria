@@ -25,86 +25,94 @@ erDiagram
     INQUILINO ||--o{ RESERVA : realiza
     INMUEBLE ||--o{ RESERVA : contiene
     RESERVA ||--o{ PAGO : genera
-    USUARIO ||--o{ PROPIETARIO : es
-    USUARIO ||--o{ INQUILINO : es
-    USUARIO ||--o{ EMPLEADO : actua_como
+    USUARIO o|--o{ RESERVA : crea
+    USUARIO o|--o{ RESERVA : termina
+    USUARIO o|--o{ PAGO : crea
+    USUARIO o|--o{ PAGO : modifica
+    USUARIO o|--o{ PAGO : anula
 
     PROPIETARIO {
         int id PK
-        string nombre
-        string apellido
-        string dni UK
-        string email
-        string telefono
-        datetime fecha_registro
+        nvarchar(50) nombre
+        nvarchar(50) apellido
+        nvarchar(15) dni UK
+        nvarchar(100) email
+        nvarchar(50) telefono
+        datetime fechaRegistro
     }
 
     TIPO_INMUEBLE {
         int id PK
-        string descripcion
+        varchar(100) descripcion
     }
 
     INMUEBLE {
         int id PK
-        int propietario_id FK
-        int tipo_inmueble_id FK
-        string nombre
-        string descripcion
-        string direccion
+        int propietarioId FK
+        int tipoInmuebleId FK
+        varchar(200) nombre
+        varchar(255) descripcion
+        varchar(200) direccion
         int cupo
-        decimal latitud
-        decimal longitud
-        decimal precio_diario
-        decimal porcentaje_reserva
-        string imagen_portada
-        text imagenes_adicionales
+        decimal latitud "DECIMAL(10,8)"
+        decimal longitud "DECIMAL(11,8)"
+        decimal precioPorDia "DECIMAL(10,2)"
+        decimal porcentajeReserva "DECIMAL(5,2)"
+        varchar(255) imagenPortada
+        text imagenesAdicionales
         boolean disponible
-        date fecha_creacion
+        datetime fechaCreacion
     }
 
     INQUILINO {
         int id PK
-        string nombre
-        string apellido
-        string dni UK
-        string email
-        string telefono
-        datetime fecha_registro
+        nvarchar(50) nombre
+        nvarchar(50) apellido
+        nvarchar(15) dni UK
+        nvarchar(100) email
+        nvarchar(50) telefono
+        datetime fechaRegistro
     }
 
     RESERVA {
         int id PK
-        int inquilino_id FK
-        int inmueble_id FK
-        decimal monto_diario
-        date fecha_inicio
-        date fecha_fin
+        date fechaInicio
+        date fechaFin
+        decimal montoDiario "DECIMAL(10,2)"
+        int inmuebleId FK
+        int inquilinoId FK
+        varchar(30) estado
+        datetime fechaCreacion
+        date fechaFinOriginal
+        datetime fechaTerminacion
+        int creadoPorUsuarioId FK
+        int terminadoPorUsuarioId FK
     }
 
     PAGO {
         int id PK
-        int reserva_id FK
-        decimal monto
-        string concepto
-        string estado
-        datetime fecha_pago
+        int reservaId FK
+        decimal monto "DECIMAL(10,2)"
+        varchar(100) concepto
+        varchar(30) estado
+        datetime fechaPago
+        datetime fechaCreacion
+        int creadoPorUsuarioId FK
+        int modificadoPorUsuarioId FK
+        datetime fechaModificacion
+        int anuladoPorUsuarioId FK
+        datetime fechaAnulacion
     }
 
     USUARIO {
         int id PK
-        string email UK
-        string password_hash
-        string rol
+        varchar(150) email UK
+        varchar(500) passwordHash
+        varchar(100) nombre
+        varchar(100) apellido
+        varchar(255) avatarUrl
+        varchar(30) rol
         boolean activo
-        datetime fecha_creacion
-        datetime ultimo_acceso
-    }
-
-    EMPLEADO {
-        int id PK
-        int usuario_id FK
-        string nombre
-        string puesto
-        boolean puede_eliminar
-        boolean puede_gestionar_usuarios
+        datetime fechaCreacion
+        datetime ultimoAcceso
     }
